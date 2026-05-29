@@ -1,0 +1,42 @@
+{
+  "name": "roku-panel",
+  "version": "0.1.0",
+  "description": "Roku dev panel — Electron UI for controlling a Roku device.",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electronmon .",
+    "build": "electron-builder --dir --win"
+  },
+  "electronmon": {
+    "patterns": [
+      "src/**/*",
+      "!**/node_modules/**",
+      "!config.json",
+      "!screenshots/**"
+    ]
+  },
+  "build": {
+    "appId": "com.rokupanel.app",
+    "productName": "Roku dev panel",
+    "asar": false,
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": ["dir"]
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^24.13.3",
+    "electronmon": "^2.0.3"
+  }
+}

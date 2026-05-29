@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' screenshot:; media-src 'self' screenshot:" />
+    <title>Roku dev panel</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>Roku dev panel</h1>
+    </header>
+    <main class="app-main">
+      <div id="content" class="content"></div>
+      <aside id="sidebar" class="sidebar"></aside>
+    </main>
+    <footer id="status-bar"></footer>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
