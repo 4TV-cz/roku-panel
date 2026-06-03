@@ -1,6 +1,6 @@
 name: Release
 
-# Build the Windows app and publish it to a GitHub Release.
+# Build the Windows + macOS app and publish it to a GitHub Release.
 # Trigger by pushing a version tag (e.g. `git tag v0.2.0 && git push origin v0.2.0`),
 # or run manually from the Actions tab (workflow_dispatch).
 on:
@@ -14,7 +14,15 @@ permissions:
 
 jobs:
   release:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: --win
+          - os: macos-latest
+            platform: --mac
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,10 +45,13 @@ jobs:
           echo "Setting package.json version to $VERSION"
           npm version "$VERSION" --no-git-tag-version --allow-same-version
 
-      # electron-builder reads GH_TOKEN to upload the installer (.exe), portable
-      # zip, and latest.yml auto-update metadata to a draft GitHub Release.
+      # electron-builder reads GH_TOKEN to upload the artifacts (Windows: nsis
+      # installer + zip; macOS: dmg + zip for x64 & arm64) and the latest*.yml
+      # auto-update metadata to a draft GitHub Release.
+      # CSC_IDENTITY_AUTO_DISCOVERY=false skips macOS code signing on CI (no cert).
       - name: Build and publish
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx electron-builder --win --publish always
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npx electron-builder ${{ matrix.platform }} --publish always

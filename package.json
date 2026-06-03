@@ -8,7 +8,7 @@
     "start": "electron .",
     "dev": "electronmon .",
     "build": "electron-builder --dir --win",
-    "release": "electron-builder --win --publish always"
+    "release": "electron-builder --publish always"
   },
   "electronmon": {
     "patterns": [
@@ -38,6 +38,13 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ]
     },
     "publish": [
       {
