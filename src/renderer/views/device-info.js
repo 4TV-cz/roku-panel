@@ -4,13 +4,12 @@ import { createCard, btn } from '../components/card.js';
 export function createDeviceInfoView({ initialCollapsed = false } = {}) {
   const discoverBtn = btn('Get Roku IP', { primary: true });
   const openBrowserBtn = btn('Open in browser');
-  const clearRegistryBtn = btn('Clear registry');
 
   const { element } = createCard({
     id: 'device-info',
     title: 'Device information',
     initialCollapsed,
-    actions: [discoverBtn, openBrowserBtn, clearRegistryBtn],
+    actions: [discoverBtn, openBrowserBtn],
     body: `
       <dl class="device-info" hidden>
         <div class="device-info-row">
@@ -100,17 +99,6 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
   openBrowserBtn.addEventListener('click', async () => {
     const res = await api.openInBrowser();
     if (!res.ok) statusEl.textContent = `Error: ${res.error}`;
-  });
-
-  clearRegistryBtn.addEventListener('click', async () => {
-    clearRegistryBtn.disabled = true;
-    statusEl.textContent = 'Clearing device registry…';
-    try {
-      const res = await api.clearRegistry();
-      statusEl.textContent = res.ok ? 'Registry clear command sent.' : `Clear registry failed: ${res.error}`;
-    } finally {
-      clearRegistryBtn.disabled = false;
-    }
   });
 
   deviceList.addEventListener('click', (e) => {

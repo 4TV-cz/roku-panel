@@ -46,32 +46,6 @@ async function sendText(host, text, { charDelayMs = 50 } = {}) {
   }
 }
 
-function clearRegistry(host, timeoutMs = 5000) {
-  return new Promise((resolve, reject) => {
-    const req = http.request(
-      {
-        host,
-        port: ECP_PORT,
-        method: 'POST',
-        path: '/input?externalCommand=clearDeviceRegistry',
-        headers: { 'cache-control': 'no-cache' },
-        timeout: timeoutMs,
-        agent: false
-      },
-      (res) => {
-        res.resume();
-        res.on('end', () => {
-          if (res.statusCode === 200) resolve();
-          else reject(new Error(`/input clearDeviceRegistry returned ${res.statusCode}`));
-        });
-      }
-    );
-    req.on('timeout', () => { req.destroy(); reject(new Error('clearRegistry timeout')); });
-    req.on('error', reject);
-    req.end();
-  });
-}
-
 function pingDevice(host, timeoutMs = 1500) {
   return new Promise((resolve) => {
     const req = http.get({ host, port: ECP_PORT, path: '/query/device-info', timeout: timeoutMs }, (res) => {
@@ -97,4 +71,4 @@ function pingDevice(host, timeoutMs = 1500) {
   });
 }
 
-module.exports = { keypress, sendSequence, sendText, pingDevice, clearRegistry };
+module.exports = { keypress, sendSequence, sendText, pingDevice };

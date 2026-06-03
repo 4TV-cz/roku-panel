@@ -4,7 +4,7 @@ Electron desktop app for controlling a Roku device during development. Wraps the
 
 ## Features
 
-- **Device information** — SSDP discovery on the LAN, ping, live model + software version (`<software>.<build>`), open the device's dev web UI in an embedded browser (auto-authenticates), reboot via the model-specific key sequence, clear the dev channel registry, check for software update via the model-specific key sequence.
+- **Device information** — SSDP discovery on the LAN, ping, live model + software version (`<software>.<build>`), open the device's dev web UI in an embedded browser (auto-authenticates), reboot via the model-specific key sequence, check for software update via the model-specific key sequence.
 - **Screenshots** — Capture via the sideload server (HTTP Digest auth), saved to `screenshots/`. Newest-first horizontal thumbnail strip; click to open in the OS image viewer, hover to delete.
 - **Capture** — Acquire a USB capture card / webcam stream into the card body; on-demand screenshot and video recording (WebM/MP4) saved alongside screenshots. Devices are only opened while the card is expanded.
 - **Deploy app** — Sideload a ZIP or a folder (zipped in-process — no `archiver` dependency, deflate-compressed, manifest at ZIP root). Last 10 ZIPs and folders are remembered in `config.json` and shown in a single "recents" dropdown for one-click redeploy. **Delete installed app** unblocks the "Identical to package previously installed" case that Roku silently rejects.
@@ -17,6 +17,8 @@ Electron desktop app for controlling a Roku device during development. Wraps the
   - **Check** button — probes port 8085 and reports `free` / `in use by another client` / `in use by this app` / `unreachable`.
   - **Robust Open** — 3 s connect timeout, force-cleans stale sockets so a failed connect no longer requires restarting the app.
 - **Send keys** — Saved-user dropdown (stored in `config.json`). Send username, send password, or run the full sign-in sequence (`text + Enter + Down × N`).
+- **Deeplink** — Four `(name, value)` rows; **Send Launch** (`POST /launch/dev?<params>`) and **Send Input** (`POST /input?<params>`). Values are persisted to `config.deeplinkParams`.
+- **Registry inspector** — Read, edit, add, and delete the dev channel's `roRegistry` over the **RALE TrackerTask** socket protocol — no device keying required (unlike ECP `query/registry`, which returns "Device not keyed" until the device is packaged). Each section is collapsible with a key count, a selectable name plus **Copy** / **Copy JSON** buttons, inline key/value editing, per-key and per-section delete, **Clear all**, and **Add JSON** to bulk-import a `{ "section": { "key": "value" } }` object. Auto-reads when the panel is expanded; destructive actions use a themed in-app confirm dialog (`components/confirm.js`).
 - **Remote** — On-screen remote controller image with clickable overlay buttons (Power, Back, Home, D-pad/OK, Replay, Voice, Options, Rev, Play, Fwd). Each click sends an ECP keypress.
 - **Status bar** — Green/red dot with the device IP, refreshed every 5 s.
 - **Layout** — Drag cards by their header to reorder; collapsed/expanded state and order are persisted to `config.json`.
@@ -53,7 +55,9 @@ All settings live in `config.json` at the project root:
 
 `deviceCredentials.password` must be set for Screenshot, Open in browser, and Deploy (all use HTTP Digest auth on port 80).
 
-The panel also writes auto-managed fields back to `config.json` — `recentZips`, `recentFolders`, `lastDeployDir`, `lastDeployFolderDir`, `cardOrder`, `cardCollapsed`, `windowBounds`. You can edit them by hand but normally don't have to.
+`trackerPort` (optional, default `54321`) is the TCP port the Registry inspector tells the in-channel RALE TrackerTask to listen on. Use the same port your RALE setup uses.
+
+The panel also writes auto-managed fields back to `config.json` — `recentZips`, `recentFolders`, `lastDeployDir`, `lastDeployFolderDir`, `deeplinkParams`, `cardOrder`, `cardCollapsed`, `windowBounds`. You can edit them by hand but normally don't have to.
 
 ## Adding a feature
 
@@ -77,7 +81,8 @@ If the feature opens or writes a file dialog, follow the pattern in `ipc/deploy.
 - The `screenshot://` custom protocol serves files out of `screenshots/` so renderer thumbnails work under a strict CSP without `webSecurity: false`.
 - HTTP requests to the sideload server (port 80) use `agent: false` because Roku closes connections in a way that confuses Node's default keep-alive agent.
 - Reboot key sequences are model-specific (`model-number` first four digits ≥ 4000 vs ≥ 3800); the device is queried live each click rather than relying on a manually-set model number.
-- Cards are draggable via their headers. Text selection inside the Telnet console works because the card's `draggable` attribute is toggled off while a mousedown is active in the console (Chromium decides drag-vs-select at mousedown time).
+- Cards are draggable via their headers. Text selection inside the Telnet console works because the card's `draggable` attribute is toggled off while a mousedown is active in the console (Chromium decides drag-vs-select at mousedown time). The Registry inspector's section names are likewise excluded from `dragstart` so they stay selectable.
+- The Registry inspector does **not** use ECP `query/registry` (that needs a packaged/keyed device and is read-only). It talks to the in-channel **RALE TrackerTask** — which must be embedded and running in the channel — by waking it with an ECP `POST /input?rale=1&port=<P>`, then exchanging framed JSON (`[start]{…}[end]` ⇄ `[start][uuid:N]<uuid>{…}[end]`) over TCP on that port. Registry reads/writes run inside the channel via `roRegistrySection`, so no keying is needed and all values are strings. The `init` command is intentionally skipped so RALE's on-screen selector overlay never appears. See `src/main/roku/tracker.js`; reference protocol: `TrackerTask.xml`.
 
 ## Scripts
 

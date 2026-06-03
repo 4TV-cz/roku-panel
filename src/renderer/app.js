@@ -6,6 +6,8 @@ import { createTelnetView } from './views/telnet.js';
 import { createRemoteView } from './views/remote.js';
 import { createCaptureView } from './views/capture.js';
 import { createDeployView } from './views/deploy.js';
+import { createDeeplinkView } from './views/deeplink.js';
+import { createRegistryView } from './views/registry.js';
 import { createStatusBar } from './views/status-bar.js';
 
 const content = $('#content');
@@ -46,7 +48,7 @@ function clearDropIndicators() {
 let draggedId = null;
 
 content.addEventListener('dragstart', (e) => {
-  if (e.target.closest('select, input, textarea, button, .telnet-console, .screenshot-thumb')) {
+  if (e.target.closest('select, input, textarea, button, .telnet-console, .screenshot-thumb, .registry-section-name')) {
     e.preventDefault();
     return;
   }
@@ -118,6 +120,8 @@ document.addEventListener('card:toggled', async () => {
   content.appendChild(createSendKeysView({ initialCollapsed: c('send-keys') }));
   content.appendChild(createCaptureView({ initialCollapsed: c('capture') }));
   content.appendChild(createDeployView({ initialCollapsed: c('deploy') }));
+  content.appendChild(createDeeplinkView({ initialCollapsed: c('deeplink') }));
+  content.appendChild(createRegistryView({ initialCollapsed: c('registry') }));
 
   sidebar.appendChild(createRemoteView({ initialCollapsed: c('remote') }));
 

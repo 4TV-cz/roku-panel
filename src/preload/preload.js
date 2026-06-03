@@ -15,11 +15,11 @@ contextBridge.exposeInMainWorld('rokuPanel', {
   keypress: (key) => ipcRenderer.invoke('roku:keypress', key),
   reboot: () => ipcRenderer.invoke('roku:reboot'),
   checkForUpdate: () => ipcRenderer.invoke('roku:checkForUpdate'),
-  clearRegistry: () => ipcRenderer.invoke('roku:clearRegistry'),
   openInBrowser: () => ipcRenderer.invoke('roku:openInBrowser'),
   openTelnet: () => ipcRenderer.invoke('telnet:open'),
   closeTelnet: () => ipcRenderer.invoke('telnet:close'),
   checkTelnet: () => ipcRenderer.invoke('telnet:check'),
+  getTelnetStatus: () => ipcRenderer.invoke('telnet:status'),
   onTelnetData: (cb) => {
     const handler = (_e, chunk) => cb(chunk);
     ipcRenderer.on('telnet:data', handler);
@@ -42,5 +42,14 @@ contextBridge.exposeInMainWorld('rokuPanel', {
   deployFolder: (folderpath) => ipcRenderer.invoke('deploy:folder', folderpath),
   deleteApp: () => ipcRenderer.invoke('deploy:delete'),
   listRecentDeployTargets: () => ipcRenderer.invoke('deploy:recent'),
-  copyToClipboard: (text) => ipcRenderer.invoke('clipboard:writeText', text)
+  copyToClipboard: (text) => ipcRenderer.invoke('clipboard:writeText', text),
+  sendDeeplinkLaunch: (payload) => ipcRenderer.invoke('deeplink:launch', payload),
+  sendDeeplinkInput: (payload) => ipcRenderer.invoke('deeplink:input', payload),
+  readRegistry: () => ipcRenderer.invoke('registry:read'),
+  registryAddField: (payload) => ipcRenderer.invoke('registry:addField', payload),
+  registryEditField: (payload) => ipcRenderer.invoke('registry:editField', payload),
+  registryRemoveField: (payload) => ipcRenderer.invoke('registry:removeField', payload),
+  registryRemoveSection: (payload) => ipcRenderer.invoke('registry:removeSection', payload),
+  registryImport: (payload) => ipcRenderer.invoke('registry:import', payload),
+  clearDeviceRegistry: () => ipcRenderer.invoke('registry:clear')
 });

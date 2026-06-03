@@ -67,6 +67,11 @@ function probePort(host, timeoutMs = PROBE_TIMEOUT_MS) {
 }
 
 function register(ipcMain, app) {
+  ipcMain.handle('telnet:status', () => {
+    const open = !!(telnetSocket && telnetSocket.readyState === 'open');
+    return { ok: true, open, host: getDeviceHost() };
+  });
+
   ipcMain.handle('telnet:check', async () => {
     const host = getDeviceHost();
     if (!host) return { ok: false, error: 'device host not set' };

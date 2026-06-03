@@ -394,7 +394,11 @@ export function createTelnetView({ initialCollapsed = false } = {}) {
       else if (res.inUse) label = `${target} — in use by another client`;
       else if (!res.reachable) label = `${target} — unreachable${res.error ? ` (${res.error})` : ''}`;
       else label = `${target} — free`;
-      setState(isOpen, label);
+      // The main process is authoritative about whether we hold the
+      // telnet socket — sync the button so it reflects reality even if
+      // the renderer's local isOpen drifted (e.g. after a hot reload
+      // while telnet was already open).
+      setState(!!res.byUs, label);
     } catch (err) {
       setState(isOpen, `check failed: ${err.message}`);
     } finally {
@@ -458,6 +462,16 @@ export function createTelnetView({ initialCollapsed = false } = {}) {
       setState(false, `error: ${evt.message}`);
     }
   });
+
+  // On mount, ask the main process whether telnet is already open.
+  // Avoids the button showing "Open" after a renderer reload that
+  // happened while the socket was still alive on the main side.
+  (async () => {
+    try {
+      const res = await api.getTelnetStatus();
+      if (res?.ok && res.open) setState(true, `connected ${res.host || ''}`.trim());
+    } catch {}
+  })();
 
   return element;
 }

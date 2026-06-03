@@ -319,6 +319,16 @@ body {
   background: #7a3aa8;
 }
 
+.btn.danger {
+  background: #cc3b3b;
+  border-color: #cc3b3b;
+  color: #fff;
+}
+
+.btn.danger:hover:not(:disabled) {
+  background: #d94e4e;
+}
+
 .btn.recording {
   background: #cc3b3b;
   border-color: #cc3b3b;
@@ -480,6 +490,169 @@ body {
 
 .card-row > .grow {
   flex: 1;
+}
+
+.deeplink-body {
+  display: flex;
+  gap: 16px;
+  padding: 12px 16px;
+  align-items: stretch;
+}
+
+.deeplink-fields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: 8px;
+  align-content: start;
+}
+
+.deeplink-fields .input {
+  min-width: 0;
+  width: 100%;
+}
+
+.deeplink-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+
+.deeplink-actions .btn {
+  width: 100%;
+}
+
+.registry-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 16px;
+}
+
+.registry-empty {
+  color: var(--fg-dim);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.registry-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.registry-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.registry-section-toggle .chevron {
+  color: var(--fg-dim);
+  font-size: 28px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 120ms ease;
+}
+
+.registry-section.collapsed .registry-section-toggle .chevron {
+  transform: rotate(-90deg);
+}
+
+.registry-section-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--fg);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Selectable so the name can be highlighted and copied with Ctrl+C. */
+  user-select: text;
+  cursor: text;
+}
+
+.btn.registry-section-copy {
+  flex: 0 0 auto;
+}
+
+.registry-section-count {
+  flex: 0 0 auto;
+  margin-right: auto;
+  color: var(--fg-dim);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.registry-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.registry-section.collapsed .registry-table {
+  display: none;
+}
+
+.registry-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.registry-row .input {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  min-width: 0;
+}
+
+.registry-add {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: #1a1a1a;
+}
+
+.registry-add .input {
+  min-width: 0;
+}
+
+.registry-add-json {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: #1a1a1a;
+}
+
+.registry-json-input {
+  flex: 1;
+  min-width: 0;
+  resize: vertical;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  line-height: 1.4;
+}
+
+.registry-add-json .btn {
+  flex: 0 0 auto;
 }
 
 .telnet-state {
@@ -738,4 +911,44 @@ body {
 .screenshot-thumb .delete-btn:hover {
   background: #cc3b3b;
   border-color: #cc3b3b;
+}
+
+/* --- themed confirm dialog --- */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  width: min(420px, calc(100vw - 48px));
+  padding: 20px;
+}
+
+.modal-title {
+  margin: 0 0 10px;
+  font-size: 15px;
+  color: var(--fg);
+}
+
+.modal-message {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+  margin-bottom: 20px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
