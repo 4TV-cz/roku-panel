@@ -7,7 +7,8 @@
   "scripts": {
     "start": "electron .",
     "dev": "electronmon .",
-    "build": "electron-builder --dir --win"
+    "build": "electron-builder --dir --win",
+    "release": "electron-builder --win --publish always"
   },
   "electronmon": {
     "patterns": [
@@ -31,8 +32,20 @@
     },
     "win": {
       "icon": "assets/icon.png",
-      "target": ["dir"]
-    }
+      "target": ["nsis", "zip"]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "4TV-cz",
+        "repo": "roku-panel"
+      }
+    ]
   },
   "devDependencies": {
     "electron": "^33.0.0",

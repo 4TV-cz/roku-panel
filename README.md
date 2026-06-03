@@ -91,3 +91,14 @@ If the feature opens or writes a file dialog, follow the pattern in `ipc/deploy.
 | `npm run dev` | Launch with electronmon hot-reload |
 | `npm start` | Launch with `electron .` |
 | `npm run build` | Package an unpacked Windows build via electron-builder (output in `dist/`) |
+| `npm run release` | Build the NSIS installer + portable zip and publish them to a GitHub Release (needs `GH_TOKEN`) |
+
+## Releasing
+
+Releases are built by the `Release` GitHub Action (`.github/workflows/release.yml`) on `windows-latest`:
+
+1. Bump `version` in `package.json` and commit.
+2. Tag and push: `git tag v0.2.0 && git push origin v0.2.0` (the tag must be `v<version>`; the workflow syncs `package.json` to the tag).
+3. The action runs `electron-builder --win --publish always`, producing the **NSIS installer** (`.exe`), a **portable zip**, and `latest.yml` (auto-update metadata), and uploads them to a **draft** GitHub Release for that tag. Review the draft and click **Publish**.
+
+The workflow can also be run manually from the **Actions** tab (`workflow_dispatch`), in which case it releases the current `package.json` version. It uses the built-in `GITHUB_TOKEN` (no extra secret required). Builds are unsigned, so Windows SmartScreen will warn on first run.
