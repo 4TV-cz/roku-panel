@@ -163,6 +163,12 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
       for (const f of data.fields) {
         const dt = document.createElement('dt');
         dt.textContent = f.key;
+        if (f.type) {
+          const t = document.createElement('span');
+          t.className = 'rale-field-type';
+          t.textContent = f.type;
+          dt.appendChild(t);
+        }
         const dd = document.createElement('dd');
         dd.textContent = f.value;
         grid.append(dt, dd);

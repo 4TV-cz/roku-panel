@@ -222,8 +222,19 @@ function normalizeFocused(raw) {
   const fl = node.fieldlist || {};
   for (const key of Object.keys(fl)) {
     const fi = (fl[key] && fl[key].item) || {};
-    if (fi.value === '{object}') continue; // skip nested nodes/arrays/aas
-    fields.push({ key, value: String(fi.value ?? ''), type: String(fi.fieldType || fi.type || '') });
+    const type = String(fi.fieldType || fi.type || '');
+    let value;
+    if (fi.value === '{object}') {
+      // RALE reports a single "{object}" for node/array/assocarray values, which
+      // would otherwise hide them entirely (a RowList is almost all object
+      // fields). Show a type-based placeholder so the field is still listed.
+      if (fi.subtype) value = `<${fi.subtype}>`;
+      else if (/array/i.test(type)) value = '[ … ]';
+      else value = '{ … }';
+    } else {
+      value = String(fi.value ?? '');
+    }
+    fields.push({ key, value, type });
   }
   fields.sort((a, b) => a.key.localeCompare(b.key));
 
