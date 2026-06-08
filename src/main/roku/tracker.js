@@ -204,49 +204,76 @@ function normalizeTree(raw) {
   return normalizeNode(raw);
 }
 
-// selectFocusedNode returns { path: [{child:N},...], node: getNodeData(...) }.
+// Normalize a raw getNodeData payload ({ item, fieldlist, layout, childlist })
+// into a lean shape. Works for nodes, arrays, and assocarrays alike — RALE
+// represents array elements and AA keys as "fields". Each field carries whether
+// it is itself an object (drillable) and which kind, so the renderer can expand
+// it on demand.
+function normalizeNodeData(raw) {
+  if (!raw || raw.error) return null;
+  const item = raw.item || {};
+  const layout = raw.layout && !raw.layout.error ? raw.layout : {};
+  const br = layout.boundingRect;
+  const isNode = item.type === 'roSGNode' || !!item.subtype;
+
+  const fields = [];
+  const fl = raw.fieldlist || {};
+  for (const key of Object.keys(fl)) {
+    const fi = (fl[key] && fl[key].item) || {};
+    const type = String(fi.fieldType || fi.type || '');
+    const object = fi.value === '{object}';
+    let kind = '';
+    let value;
+    if (object) {
+      // RALE reports a single "{object}" for node/array/assocarray values.
+      if (fi.subtype || /\bnode\b/i.test(type)) { kind = 'node'; value = fi.subtype ? `<${fi.subtype}>` : '<node>'; }
+      else if (fi.type === 'roArray' || /array/i.test(type)) { kind = 'array'; value = '[ … ]'; }
+      else { kind = 'assoc'; value = '{ … }'; }
+    } else {
+      value = String(fi.value ?? '');
+    }
+    fields.push({ key, value, type, object, kind });
+  }
+  // Numeric-aware so array element keys "0".."10" sort naturally.
+  fields.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
+
+  const children = [];
+  const cl = Array.isArray(raw.childlist) ? raw.childlist
+    : Array.isArray(raw.childList) ? raw.childList : [];
+  for (const c of cl) {
+    if (!c || (c.item && c.item.isExposed)) continue;
+    const ci = c.item || {};
+    children.push({
+      index: typeof ci.index === 'number' ? ci.index : null,
+      subtype: String(ci.subtype || ci.type || 'Node'),
+      id: ci.id != null && ci.id !== '' ? String(ci.id) : '',
+      childCount: typeof ci.childrenCount === 'number' ? ci.childrenCount : 0
+    });
+  }
+
+  return {
+    subtype: String(item.subtype || item.type || 'Node'),
+    id: item.id != null && item.id !== '' ? String(item.id) : '',
+    isNode,
+    boundingRect: br && typeof br === 'object'
+      ? { x: br.x, y: br.y, width: br.width, height: br.height }
+      : null,
+    fields,
+    children
+  };
+}
+
+// selectFocusedNode / selectNode return { path: [{child:N},...], node }.
 function normalizeFocused(raw) {
   if (!raw || raw.error) return null;
-  const node = raw.node || {};
-  const item = node.item || {};
-  const layout = node.layout || {};
-  const br = layout.boundingRect;
-
+  const data = normalizeNodeData(raw.node || {});
+  if (!data) return null;
   const path = Array.isArray(raw.path)
     ? raw.path
         .map((seg) => (seg && typeof seg === 'object' && typeof seg.child === 'number' ? seg.child : null))
         .filter((v) => v !== null)
     : [];
-
-  const fields = [];
-  const fl = node.fieldlist || {};
-  for (const key of Object.keys(fl)) {
-    const fi = (fl[key] && fl[key].item) || {};
-    const type = String(fi.fieldType || fi.type || '');
-    let value;
-    if (fi.value === '{object}') {
-      // RALE reports a single "{object}" for node/array/assocarray values, which
-      // would otherwise hide them entirely (a RowList is almost all object
-      // fields). Show a type-based placeholder so the field is still listed.
-      if (fi.subtype) value = `<${fi.subtype}>`;
-      else if (/array/i.test(type)) value = '[ … ]';
-      else value = '{ … }';
-    } else {
-      value = String(fi.value ?? '');
-    }
-    fields.push({ key, value, type });
-  }
-  fields.sort((a, b) => a.key.localeCompare(b.key));
-
-  return {
-    subtype: String(item.subtype || item.type || 'Node'),
-    id: item.id != null && item.id !== '' ? String(item.id) : '',
-    path,
-    boundingRect: br && typeof br === 'object'
-      ? { x: br.x, y: br.y, width: br.width, height: br.height }
-      : null,
-    fields
-  };
+  return { ...data, path };
 }
 
 // Read the full SceneGraph layer tree plus the currently focused node, all in one
@@ -301,6 +328,18 @@ async function selectNode(host, port, path) {
   return normalizeFocused(raw);
 }
 
+// Read a value's data by an explicit RALE path: an array of segments, each
+// { child: N } (descend into a node's child) or { field: K } (descend into a
+// node field, array element, or assocarray key). Pure read — no selection or
+// overlay change. Used to lazily expand object fields in the details panel.
+async function getNodeDataAt(host, port, segments) {
+  const path = Array.isArray(segments) ? segments : [];
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'getNodeData', args: { path } }
+  ], port);
+  return normalizeNodeData(raw);
+}
+
 // Run a mutating command, then re-read in the same session so the renderer gets
 // fresh data in one round trip.
 async function mutateAndRead(host, command, args, port) {
@@ -329,6 +368,7 @@ module.exports = {
   readRegistry,
   readLayout,
   selectNode,
+  getNodeDataAt,
   addRegistryField: (host, sectionName, key, value, port) =>
     mutateAndRead(host, 'addRegistryField', { sectionName, key, value }, port),
   editRegistryField: (host, sectionName, key, newKey, newValue, port) =>

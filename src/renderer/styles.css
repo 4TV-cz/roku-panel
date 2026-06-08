@@ -750,31 +750,74 @@ body {
   color: var(--fg-dim);
 }
 
-.rale-fields {
-  margin: 10px 0 0;
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 16px;
-  row-gap: 3px;
+.rale-props {
+  margin-top: 10px;
   font-family: ui-monospace, Menlo, Consolas, monospace;
   font-size: 12px;
 }
 
-.rale-fields dt {
+.rale-prop-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.rale-prop-line.drillable {
+  cursor: pointer;
+}
+
+.rale-prop-line.drillable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rale-prop-toggle {
+  flex: 0 0 12px;
+}
+
+.rale-prop-toggle .chevron {
+  display: inline-block;
+  width: 12px;
   color: var(--fg-dim);
+  transition: transform 120ms ease;
+}
+
+.rale-prop.collapsed > .rale-prop-line .rale-prop-toggle .chevron {
+  transform: rotate(-90deg);
+}
+
+.rale-prop-spacer {
+  flex: 0 0 12px;
+}
+
+.rale-prop-name {
+  color: #9cdcfe;
 }
 
 .rale-field-type {
-  margin-left: 6px;
   font-size: 10px;
   color: #6a8759;
 }
 
-.rale-fields dd {
-  margin: 0;
+.rale-prop-value {
   color: var(--fg);
   min-width: 0;
   word-break: break-word;
+}
+
+.rale-prop-children {
+  padding-left: 14px;
+  margin-left: 5px;
+  border-left: 1px solid var(--border);
+}
+
+.rale-prop.collapsed > .rale-prop-children {
+  display: none;
+}
+
+.rale-prop-loading {
+  color: var(--fg-dim);
+  padding: 2px 0;
 }
 
 .rale-tree {

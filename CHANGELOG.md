@@ -8,7 +8,10 @@
   Editor panel. A two-column layout: the running channel's full SceneGraph layer
   tree on the left (collapsible nodes with subtype, `#id`, and child count) and
   the selected node's details on the right (subtype/`#id`, parent-chain breadcrumb,
-  bounding rect, and scalar fields). Click any node in the tree to select it and
+  bounding rect, and fields with their SceneGraph types). Node-, array-, and
+  assocarray-valued fields expand inline to drill into their contents (e.g. a
+  RowList's `content` ContentNode and its child items), fetched lazily on expand.
+  Click any node in the tree to select it and
   update the details panel; the device-focused node is marked with a ◉ and is the
   initial selection. The tree auto-expands and highlights the path from the root
   layer down to the selected node, with the whole parent chain marked. When **Show

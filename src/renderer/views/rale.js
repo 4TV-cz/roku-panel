@@ -105,7 +105,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   // Render the right-hand details panel for one node. `data` is the normalized
   // node object ({ subtype, id, boundingRect, fields }); `label` distinguishes
   // the device-focused node from a user-selected one.
-  function renderDetails(data, ancestors, label) {
+  function renderDetails(data, ancestors, label, segments) {
     focusedEl.innerHTML = '';
     if (!data) {
       focusedEl.innerHTML = '<div class="rale-empty">No node selected.</div>';
@@ -158,23 +158,131 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     }
 
     if (data.fields && data.fields.length) {
-      const grid = document.createElement('dl');
-      grid.className = 'rale-fields';
-      for (const f of data.fields) {
-        const dt = document.createElement('dt');
-        dt.textContent = f.key;
-        if (f.type) {
-          const t = document.createElement('span');
-          t.className = 'rale-field-type';
-          t.textContent = f.type;
-          dt.appendChild(t);
-        }
-        const dd = document.createElement('dd');
-        dd.textContent = f.value;
-        grid.append(dt, dd);
-      }
-      focusedEl.appendChild(grid);
+      const props = document.createElement('div');
+      props.className = 'rale-props';
+      // Top-level: show the node's fields only — its SceneGraph children are
+      // already in the left tree (don't duplicate them here).
+      renderEntries(props, data, Array.isArray(segments) ? segments : [], false);
+      focusedEl.appendChild(props);
     }
+  }
+
+  // Render a value's fields (and, for drilled-in nodes, its children) as
+  // collapsible rows into `container`. `ownerSegments` is the RALE path to the
+  // value that owns these entries.
+  function renderEntries(container, data, ownerSegments, includeChildren) {
+    for (const f of data.fields || []) {
+      container.appendChild(makeFieldRow(f, ownerSegments));
+    }
+    if (includeChildren && data.isNode) {
+      for (const c of data.children || []) {
+        container.appendChild(makeChildRow(c, ownerSegments));
+      }
+    }
+  }
+
+  function makeFieldRow(f, ownerSegments) {
+    return makeExpandable({
+      drillable: f.object,
+      name: f.key,
+      type: f.type,
+      value: f.value,
+      segments: ownerSegments.concat([{ field: f.key }]),
+      // Show children only when drilling into a node value (arrays/assoc arrays
+      // expose everything through their "fields").
+      includeChildren: f.kind === 'node'
+    });
+  }
+
+  function makeChildRow(c, ownerSegments) {
+    return makeExpandable({
+      drillable: true,
+      name: c.id ? `${c.subtype} #${c.id}` : c.subtype,
+      type: 'node',
+      value: c.childCount ? `${c.childCount} child${c.childCount === 1 ? '' : 'ren'}` : '',
+      segments: ownerSegments.concat([{ child: c.index }]),
+      includeChildren: true
+    });
+  }
+
+  // A collapsible property row. Object/array/node rows lazily fetch their
+  // contents (getNodeData by path) the first time they are expanded.
+  function makeExpandable(opts) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rale-prop';
+
+    const line = document.createElement('div');
+    line.className = 'rale-prop-line';
+
+    let box = null;
+    let loaded = false;
+    let expanded = false;
+
+    const onToggle = async () => {
+      expanded = !expanded;
+      wrap.classList.toggle('collapsed', !expanded);
+      if (!expanded || loaded) return;
+      loaded = true;
+      box.innerHTML = '<div class="rale-prop-loading">Loading…</div>';
+      try {
+        const res = await api.raleGetNodeData({ segments: opts.segments });
+        box.innerHTML = '';
+        if (!res.ok || !res.node) {
+          box.innerHTML = `<div class="rale-empty">${res.error || 'No data.'}</div>`;
+          return;
+        }
+        const hasChildren = opts.includeChildren && res.node.isNode && res.node.children.length;
+        if (!res.node.fields.length && !hasChildren) {
+          box.innerHTML = '<div class="rale-empty">(empty)</div>';
+          return;
+        }
+        renderEntries(box, res.node, opts.segments, opts.includeChildren);
+      } catch (err) {
+        box.innerHTML = `<div class="rale-empty">${err.message}</div>`;
+      }
+    };
+
+    if (opts.drillable) {
+      const chev = document.createElement('span');
+      chev.className = 'rale-prop-toggle';
+      chev.innerHTML = '<span class="chevron" aria-hidden="true">▾</span>';
+      line.appendChild(chev);
+      line.classList.add('drillable');
+      line.addEventListener('click', onToggle);
+    } else {
+      const spacer = document.createElement('span');
+      spacer.className = 'rale-prop-spacer';
+      line.appendChild(spacer);
+    }
+
+    const name = document.createElement('span');
+    name.className = 'rale-prop-name';
+    name.textContent = opts.name;
+    line.appendChild(name);
+
+    if (opts.type) {
+      const t = document.createElement('span');
+      t.className = 'rale-field-type';
+      t.textContent = opts.type;
+      line.appendChild(t);
+    }
+    if (opts.value) {
+      const v = document.createElement('span');
+      v.className = 'rale-prop-value';
+      v.textContent = opts.value;
+      line.appendChild(v);
+    }
+
+    wrap.appendChild(line);
+
+    if (opts.drillable) {
+      box = document.createElement('div');
+      box.className = 'rale-prop-children';
+      wrap.classList.add('collapsed');
+      wrap.appendChild(box);
+    }
+
+    return wrap;
   }
 
   function fmt(n) {
@@ -226,7 +334,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
         statusEl.textContent = `Select failed: ${res.error}`;
         return;
       }
-      renderDetails(res.node, pathNodes(currentTree, path), label);
+      renderDetails(res.node, pathNodes(currentTree, path), label, path.map((i) => ({ child: i })));
       statusEl.textContent = `${label} node updated.`;
     } catch (err) {
       statusEl.textContent = `Select failed: ${err.message}`;
@@ -339,7 +447,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
       renderTree(res.tree, focusedPath);
       // Initial selection follows the focused node.
       applySelection(focusedPath);
-      renderDetails(res.focused, pathNodes(res.tree, focusedPath), 'Focused');
+      renderDetails(res.focused, pathNodes(res.tree, focusedPath), 'Focused', focusedPath.map((i) => ({ child: i })));
       const count = countNodes(res.tree);
       statusEl.textContent = `Layout updated — ${count} layer${count === 1 ? '' : 's'}.`;
     } catch (err) {

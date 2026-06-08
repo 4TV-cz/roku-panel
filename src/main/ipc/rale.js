@@ -35,6 +35,20 @@ function register(ipcMain) {
       return { ok: false, error: err.message };
     }
   });
+
+  // Read a value's data by explicit RALE path segments (for lazily expanding
+  // object-valued fields in the details panel).
+  ipcMain.handle('rale:getNodeData', async (_evt, payload) => {
+    const host = getDeviceHost();
+    if (!host) return { ok: false, error: HOST_NOT_SET };
+    const segments = Array.isArray(payload && payload.segments) ? payload.segments : [];
+    try {
+      const node = await tracker.getNodeDataAt(host, trackerPort(), segments);
+      return { ok: true, node };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
 }
 
 module.exports = { register };
