@@ -16,6 +16,7 @@ require('./ipc/remote').register(ipcMain);
 require('./ipc/deploy').register(ipcMain);
 require('./ipc/deeplink').register(ipcMain);
 require('./ipc/registry').register(ipcMain);
+require('./ipc/rale').register(ipcMain);
 
 ipcMain.handle('clipboard:writeText', (_e, text) => {
   clipboard.writeText(String(text ?? ''));

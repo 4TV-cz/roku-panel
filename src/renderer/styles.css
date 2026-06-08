@@ -655,6 +655,377 @@ body {
   flex: 0 0 auto;
 }
 
+/* --- RALE layout viewer (read-only) --- */
+
+.rale-overlay-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.rale-overlay-toggle input {
+  cursor: pointer;
+  margin: 0;
+}
+
+.rale-cols {
+  display: flex;
+  align-items: stretch;
+  max-height: 70vh;
+}
+
+.rale-resizer {
+  flex: 0 0 6px;
+  align-self: stretch;
+  background: var(--border);
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.rale-resizer:hover {
+  background: var(--accent);
+}
+
+.rale-focused {
+  /* width is set inline (flex-basis); defaults to 50%, drag the splitter to change */
+  flex-grow: 0;
+  flex-shrink: 0;
+  flex-basis: 50%;
+  min-width: 0;
+  padding: 12px 16px;
+  background: #1a1a1a;
+  overflow: auto;
+  /* Selectable so values / node names can be highlighted and copied. */
+  user-select: text;
+  cursor: text;
+}
+
+.rale-focused-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rale-focused-label {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--fg-dim);
+}
+
+.rale-breadcrumb {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.rale-breadcrumb-seg {
+  color: #c9a6e6;
+}
+
+.rale-breadcrumb-seg.current {
+  color: #fff;
+  font-weight: 600;
+}
+
+.rale-breadcrumb-sep {
+  color: var(--fg-dim);
+}
+
+.rale-section {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.rale-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--fg-dim);
+}
+
+.rale-section-head .chevron {
+  display: inline-block;
+  transition: transform 120ms ease;
+}
+
+.rale-section.collapsed .rale-section-head .chevron {
+  transform: rotate(-90deg);
+}
+
+.rale-section-body {
+  margin-top: 8px;
+}
+
+.rale-section.collapsed .rale-section-body {
+  display: none;
+}
+
+.rale-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.rale-layout > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.rale-layout-values {
+  flex: 0 0 auto;
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  column-gap: 10px;
+  row-gap: 2px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11px;
+}
+
+.rale-layout-values dt {
+  color: var(--fg-dim);
+}
+
+.rale-layout-values dd {
+  margin: 0;
+  color: var(--fg);
+  text-align: right;
+}
+
+.rale-minimap {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  height: 0; /* height comes from inline padding-bottom (screen aspect ratio) */
+  background: #111;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.rale-minimap-rect {
+  position: absolute;
+  min-width: 2px;
+  min-height: 2px;
+  background: rgba(106, 48, 147, 0.4);
+  border: 1px solid var(--accent);
+}
+
+.rale-minimap-caption {
+  margin-top: 3px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--fg-dim);
+}
+
+.rale-props {
+  margin-top: 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.rale-prop-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.rale-prop-line.drillable {
+  cursor: pointer;
+}
+
+.rale-prop-line.drillable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.rale-prop-toggle {
+  flex: 0 0 12px;
+}
+
+.rale-prop-toggle .chevron {
+  display: inline-block;
+  width: 12px;
+  color: var(--fg-dim);
+  transition: transform 120ms ease;
+}
+
+.rale-prop.collapsed > .rale-prop-line .rale-prop-toggle .chevron {
+  transform: rotate(-90deg);
+}
+
+.rale-prop-spacer {
+  flex: 0 0 12px;
+}
+
+.rale-prop-name {
+  color: #9cdcfe;
+}
+
+.rale-field-type {
+  font-size: 10px;
+  color: #6a8759;
+}
+
+.rale-prop-value {
+  color: var(--fg);
+  min-width: 0;
+  word-break: break-word;
+}
+
+.rale-prop-children {
+  padding-left: 14px;
+  margin-left: 5px;
+  border-left: 1px solid var(--border);
+}
+
+.rale-prop.collapsed > .rale-prop-children {
+  display: none;
+}
+
+.rale-prop-loading {
+  color: var(--fg-dim);
+  padding: 2px 0;
+}
+
+.rale-tree {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.rale-empty {
+  color: var(--fg-dim);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.rale-tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rale-node-children {
+  padding-left: 18px !important;
+  border-left: 1px solid var(--border);
+  margin-left: 9px !important;
+}
+
+.rale-node.collapsed > .rale-node-children {
+  display: none;
+}
+
+.rale-node-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.rale-node-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Parent chain from the root down to the selected node. */
+.rale-node-row.ancestor .rale-node-subtype {
+  color: #c9a6e6;
+}
+
+.rale-node-row.ancestor .rale-node-toggle .chevron {
+  color: #c9a6e6;
+}
+
+/* The currently inspected (selected) node — drives the details panel. */
+.rale-node-row.selected {
+  background: rgba(106, 48, 147, 0.35);
+  outline: 1px solid var(--accent);
+}
+
+.rale-node-row.selected .rale-node-subtype {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* The node that currently holds focus on the device (marker, independent of
+   what is selected for inspection). */
+.rale-node-row.is-focused .rale-node-subtype::after {
+  content: '◉';
+  margin-left: 6px;
+  font-size: 10px;
+  color: #e2c08d;
+  vertical-align: middle;
+}
+
+.rale-node-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.rale-node-toggle .chevron {
+  color: var(--fg-dim);
+  font-size: 14px;
+  line-height: 1;
+  transition: transform 120ms ease;
+}
+
+.rale-node.collapsed > .rale-node-row .rale-node-toggle .chevron {
+  transform: rotate(-90deg);
+}
+
+.rale-node-spacer {
+  flex: 0 0 auto;
+  width: 16px;
+}
+
+.rale-node-subtype {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--fg);
+}
+
+.rale-node-id {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #4ec9b0;
+}
+
+.rale-node-count {
+  font-size: 11px;
+  color: var(--fg-dim);
+  opacity: 0.7;
+}
+
 .telnet-state {
   font-size: 12px;
   color: var(--fg-dim);

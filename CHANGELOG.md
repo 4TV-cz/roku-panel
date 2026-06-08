@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- **RALE — Layout (read-only)** — A lightweight, read-only Roku Advanced Layout
+  Editor panel over the same RALE TrackerTask socket as the Registry inspector.
+  Two columns split by a draggable splitter (default 50%, persisted to
+  `config.raleDetailsWidth`):
+  - **Left:** the running channel's full SceneGraph layer tree (collapsible nodes
+    with subtype, `#id`, and child count). Click a node to select it; the tree
+    auto-expands and highlights the path from the root layer down to the selected
+    node. The device-focused node is marked with a ◉ and is the initial selection.
+  - **Right:** the selected node's details — subtype/`#id`, a parent-chain
+    breadcrumb, fields with their SceneGraph types, and a collapsible **Layout**
+    section with a bounding-box mini-map drawn to the design resolution plus
+    X/Y/Width/Height. Node-, array-, and assocarray-valued fields expand inline to
+    drill into their contents (e.g. a RowList's `content` ContentNode and its
+    items), fetched lazily. Text is selectable for copying.
+  - **Refresh** re-reads (also auto-reads when expanded); **Select Focused**
+    re-queries the focused node after you move focus with the remote; a **Show on
+    device** checkbox (default off, persisted to `config.raleShowOverlay`) draws
+    RALE's selector overlay around the selected node on the TV (`init` is only
+    sent in this mode, so otherwise nothing is drawn).
+
 ## 2026-06-03
 
 First packaged release of the Roku dev panel — an Electron desktop app that

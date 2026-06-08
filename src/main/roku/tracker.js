@@ -97,9 +97,14 @@ function sendCommand(sock, state, command, args, timeoutMs = 6000) {
       if (!frame) return;
       state.buf = frame.rest;
       cleanup();
+      // RALE commands implemented as a Sub return no value; the device then
+      // sends an empty JSON payload (FormatJson(invalid) === ""). Treat that as
+      // a successful, value-less response rather than a parse error.
+      const json = (frame.json || '').trim();
+      if (json === '') { resolve(null); return; }
       let parsed;
       try {
-        parsed = JSON.parse(frame.json);
+        parsed = JSON.parse(json);
       } catch (err) {
         reject(new Error(`bad response to "${command}": ${err.message}`));
         return;
@@ -161,6 +166,215 @@ async function readRegistry(host, port) {
   return normalizeSections(raw);
 }
 
+// --- RALE layout (read-only) -------------------------------------------------
+
+// Case-insensitive property lookup. The deployed TrackerTask serializes
+// associative-array keys in lowercase (`boundingrect`, `childrencount`,
+// `isexposed`, `fieldtype`), while some builds use camelCase. Read either.
+function ci(obj, name) {
+  if (!obj || typeof obj !== 'object') return undefined;
+  if (obj[name] !== undefined) return obj[name];
+  const lower = name.toLowerCase();
+  for (const k in obj) {
+    if (k.toLowerCase() === lower) return obj[k];
+  }
+  return undefined;
+}
+
+function idOf(v) {
+  return v != null && v !== '' ? String(v) : '';
+}
+
+// Flatten a getNodeTree node ({ item, childList }) into a lean renderer shape.
+// RALE's own helper nodes carry isExposed=true; drop them defensively (with
+// `init` skipped they shouldn't exist, but the desktop RALE app may inject them
+// into the same running channel).
+function normalizeNode(n) {
+  if (!n || typeof n !== 'object') return null;
+  const item = ci(n, 'item') || {};
+  const childrenRaw = Array.isArray(ci(n, 'childList')) ? ci(n, 'childList') : [];
+  const children = [];
+  for (const c of childrenRaw) {
+    const cItem = ci(c, 'item');
+    if (!c || (cItem && ci(cItem, 'isExposed'))) continue;
+    const norm = normalizeNode(c);
+    if (norm) children.push(norm);
+  }
+  const childrenCount = ci(item, 'childrenCount');
+  return {
+    subtype: String(ci(item, 'subtype') || ci(item, 'type') || 'Node'),
+    id: idOf(ci(item, 'id')),
+    // Real child index within the parent (stable even when siblings are pruned),
+    // so the focused-node path can be matched against it.
+    index: typeof ci(item, 'index') === 'number' ? ci(item, 'index') : null,
+    childCount: typeof childrenCount === 'number' ? childrenCount : children.length,
+    children
+  };
+}
+
+function normalizeTree(raw) {
+  if (!raw || ci(raw, 'error')) return null;
+  return normalizeNode(raw);
+}
+
+// Normalize a raw getNodeData payload ({ item, fieldlist, layout, childlist })
+// into a lean shape. Works for nodes, arrays, and assocarrays alike — RALE
+// represents array elements and AA keys as "fields". Each field carries whether
+// it is itself an object (drillable) and which kind, so the renderer can expand
+// it on demand.
+function normalizeNodeData(raw) {
+  if (!raw || ci(raw, 'error')) return null;
+  const item = ci(raw, 'item') || {};
+  const layoutRaw = ci(raw, 'layout');
+  const layout = layoutRaw && !ci(layoutRaw, 'error') ? layoutRaw : {};
+  const br = ci(layout, 'boundingRect');
+  const res = ci(layout, 'resolution');
+  const isNode = ci(item, 'type') === 'roSGNode' || !!ci(item, 'subtype');
+
+  const fields = [];
+  const fl = ci(raw, 'fieldlist') || {};
+  for (const key of Object.keys(fl)) {
+    const fi = (fl[key] && ci(fl[key], 'item')) || {};
+    const type = String(ci(fi, 'fieldType') || ci(fi, 'type') || '');
+    const subtypeVal = ci(fi, 'subtype');
+    const typeVal = ci(fi, 'type');
+    const value0 = ci(fi, 'value');
+    const object = value0 === '{object}';
+    let kind = '';
+    let value;
+    if (object) {
+      // RALE reports a single "{object}" for node/array/assocarray values.
+      if (subtypeVal || /\bnode\b/i.test(type)) { kind = 'node'; value = subtypeVal ? `<${subtypeVal}>` : '<node>'; }
+      else if (typeVal === 'roArray' || /array/i.test(type)) { kind = 'array'; value = '[ … ]'; }
+      else { kind = 'assoc'; value = '{ … }'; }
+    } else {
+      value = String(value0 ?? '');
+    }
+    fields.push({ key, value, type, object, kind });
+  }
+  // Numeric-aware so array element keys "0".."10" sort naturally.
+  fields.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
+
+  const children = [];
+  const cl = Array.isArray(ci(raw, 'childlist')) ? ci(raw, 'childlist') : [];
+  for (const c of cl) {
+    const cItem = ci(c, 'item');
+    if (!c || (cItem && ci(cItem, 'isExposed'))) continue;
+    const it = cItem || {};
+    const cc = ci(it, 'childrenCount');
+    children.push({
+      index: typeof ci(it, 'index') === 'number' ? ci(it, 'index') : null,
+      subtype: String(ci(it, 'subtype') || ci(it, 'type') || 'Node'),
+      id: idOf(ci(it, 'id')),
+      childCount: typeof cc === 'number' ? cc : 0
+    });
+  }
+
+  const rw = br && typeof br === 'object' ? ci(br, 'width') : null;
+  const rh = br && typeof br === 'object' ? ci(br, 'height') : null;
+  const resW = res && typeof res === 'object' ? ci(res, 'width') : null;
+  const resH = res && typeof res === 'object' ? ci(res, 'height') : null;
+
+  return {
+    subtype: String(ci(item, 'subtype') || ci(item, 'type') || 'Node'),
+    id: idOf(ci(item, 'id')),
+    isNode,
+    boundingRect: br && typeof br === 'object'
+      ? { x: ci(br, 'x'), y: ci(br, 'y'), width: rw, height: rh }
+      : null,
+    resolution: resW > 0 && resH > 0 ? { width: resW, height: resH } : null,
+    fields,
+    children
+  };
+}
+
+// selectFocusedNode / selectNode return { path: [{child:N},...], node }.
+function normalizeFocused(raw) {
+  if (!raw || ci(raw, 'error')) return null;
+  const data = normalizeNodeData(ci(raw, 'node') || {});
+  if (!data) return null;
+  const pathRaw = ci(raw, 'path');
+  const path = Array.isArray(pathRaw)
+    ? pathRaw
+        .map((seg) => { const c = ci(seg, 'child'); return typeof c === 'number' ? c : null; })
+        .filter((v) => v !== null)
+    : [];
+  return { ...data, path };
+}
+
+// Read the full SceneGraph layer tree plus the currently focused node, all in one
+// TrackerTask session.
+//
+// When `showOverlay` is false (default), nothing is drawn on the TV:
+//   - `selectNode {path:[]}` primes m.currentNode so `selectFocusedNode` won't
+//     dereference an uninitialized field.
+//   - `hideSelectorView` forces m.showSelectorView=false, so `selectFocusedNode`
+//     won't (re)attach RALE's red box even if `init` was run in a prior call.
+//
+// When `showOverlay` is true, RALE's selector overlay is drawn around the focused
+// node:
+//   - `init` creates the selector view (and primes m.currentNode).
+//   - `showSelectorView` ensures m.showSelectorView=true (init only sets it the
+//     first time the view is created).
+//   - `selectFocusedNode` then attaches the box to the focused node.
+async function readLayout(host, port, showOverlay = false) {
+  const prelude = showOverlay
+    ? [
+        // logVerbosity must be a number: init does `if args.logVerbosity >= 0`,
+        // which throws on Invalid. -1 means "don't change RALE's log verbosity".
+        { command: 'init', args: { logVerbosity: -1 } },
+        { command: 'showSelectorView', args: {} }
+      ]
+    : [
+        { command: 'selectNode', args: { path: [] } },
+        { command: 'hideSelectorView', args: {} }
+      ];
+
+  const commands = [
+    ...prelude,
+    { command: 'getNodeTree', args: { path: [], maxLevel: 50 } },
+    { command: 'selectFocusedNode', args: {} }
+  ];
+
+  const results = await runTrackerCommands(host, commands, port);
+  const treeRaw = results[results.length - 2];
+  const focusedRaw = results[results.length - 1];
+  return { tree: normalizeTree(treeRaw), focused: normalizeFocused(focusedRaw) };
+}
+
+// Select a node by its index path (array of child indices from the root) and
+// return its data. `selectNode` returns the same { path, node } shape as
+// `selectFocusedNode`, and on the device it moves RALE's selector overlay to the
+// node when "Show on device" is enabled (a no-op otherwise).
+async function selectNode(host, port, path) {
+  const pathArg = (Array.isArray(path) ? path : []).map((i) => ({ child: i }));
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'selectNode', args: { path: pathArg } }
+  ], port);
+  return normalizeFocused(raw);
+}
+
+// Query the currently focused node (path + data) without re-reading the tree.
+// Honors the current on-device overlay state, like selectNode.
+async function selectFocused(host, port) {
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'selectFocusedNode', args: {} }
+  ], port);
+  return normalizeFocused(raw);
+}
+
+// Read a value's data by an explicit RALE path: an array of segments, each
+// { child: N } (descend into a node's child) or { field: K } (descend into a
+// node field, array element, or assocarray key). Pure read — no selection or
+// overlay change. Used to lazily expand object fields in the details panel.
+async function getNodeDataAt(host, port, segments) {
+  const path = Array.isArray(segments) ? segments : [];
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'getNodeData', args: { path } }
+  ], port);
+  return normalizeNodeData(raw);
+}
+
 // Run a mutating command, then re-read in the same session so the renderer gets
 // fresh data in one round trip.
 async function mutateAndRead(host, command, args, port) {
@@ -187,6 +401,10 @@ async function importSections(host, sections, port) {
 module.exports = {
   DEFAULT_TRACKER_PORT,
   readRegistry,
+  readLayout,
+  selectNode,
+  selectFocused,
+  getNodeDataAt,
   addRegistryField: (host, sectionName, key, value, port) =>
     mutateAndRead(host, 'addRegistryField', { sectionName, key, value }, port),
   editRegistryField: (host, sectionName, key, newKey, newValue, port) =>
