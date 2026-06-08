@@ -51,5 +51,7 @@ contextBridge.exposeInMainWorld('rokuPanel', {
   registryRemoveField: (payload) => ipcRenderer.invoke('registry:removeField', payload),
   registryRemoveSection: (payload) => ipcRenderer.invoke('registry:removeSection', payload),
   registryImport: (payload) => ipcRenderer.invoke('registry:import', payload),
-  clearDeviceRegistry: () => ipcRenderer.invoke('registry:clear')
+  clearDeviceRegistry: () => ipcRenderer.invoke('registry:clear'),
+  readRaleLayout: (opts) => ipcRenderer.invoke('rale:readLayout', opts),
+  raleSelectNode: (opts) => ipcRenderer.invoke('rale:selectNode', opts)
 });

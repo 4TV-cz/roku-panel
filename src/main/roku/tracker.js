@@ -97,9 +97,14 @@ function sendCommand(sock, state, command, args, timeoutMs = 6000) {
       if (!frame) return;
       state.buf = frame.rest;
       cleanup();
+      // RALE commands implemented as a Sub return no value; the device then
+      // sends an empty JSON payload (FormatJson(invalid) === ""). Treat that as
+      // a successful, value-less response rather than a parse error.
+      const json = (frame.json || '').trim();
+      if (json === '') { resolve(null); return; }
       let parsed;
       try {
-        parsed = JSON.parse(frame.json);
+        parsed = JSON.parse(json);
       } catch (err) {
         reject(new Error(`bad response to "${command}": ${err.message}`));
         return;
@@ -161,6 +166,130 @@ async function readRegistry(host, port) {
   return normalizeSections(raw);
 }
 
+// --- RALE layout (read-only) -------------------------------------------------
+
+// Flatten a getNodeTree node ({ item, childList }) into a lean renderer shape.
+// RALE's own helper nodes carry isExposed=true; drop them defensively (with
+// `init` skipped they shouldn't exist, but the desktop RALE app may inject them
+// into the same running channel).
+function normalizeNode(n) {
+  if (!n || typeof n !== 'object') return null;
+  const item = n.item || {};
+  // BrightScript AAs are case-insensitive; the device may emit `childList` or
+  // `childlist` depending on which key case was written first. Accept either.
+  const childrenRaw = Array.isArray(n.childList)
+    ? n.childList
+    : Array.isArray(n.childlist)
+      ? n.childlist
+      : [];
+  const children = [];
+  for (const c of childrenRaw) {
+    if (!c || (c.item && c.item.isExposed)) continue;
+    const norm = normalizeNode(c);
+    if (norm) children.push(norm);
+  }
+  return {
+    subtype: String(item.subtype || item.type || 'Node'),
+    id: item.id != null && item.id !== '' ? String(item.id) : '',
+    // Real child index within the parent (stable even when siblings are pruned),
+    // so the focused-node path can be matched against it.
+    index: typeof item.index === 'number' ? item.index : null,
+    childCount: typeof item.childrenCount === 'number' ? item.childrenCount : children.length,
+    children
+  };
+}
+
+function normalizeTree(raw) {
+  if (!raw || raw.error) return null;
+  return normalizeNode(raw);
+}
+
+// selectFocusedNode returns { path: [{child:N},...], node: getNodeData(...) }.
+function normalizeFocused(raw) {
+  if (!raw || raw.error) return null;
+  const node = raw.node || {};
+  const item = node.item || {};
+  const layout = node.layout || {};
+  const br = layout.boundingRect;
+
+  const path = Array.isArray(raw.path)
+    ? raw.path
+        .map((seg) => (seg && typeof seg === 'object' && typeof seg.child === 'number' ? seg.child : null))
+        .filter((v) => v !== null)
+    : [];
+
+  const fields = [];
+  const fl = node.fieldlist || {};
+  for (const key of Object.keys(fl)) {
+    const fi = (fl[key] && fl[key].item) || {};
+    if (fi.value === '{object}') continue; // skip nested nodes/arrays/aas
+    fields.push({ key, value: String(fi.value ?? ''), type: String(fi.fieldType || fi.type || '') });
+  }
+  fields.sort((a, b) => a.key.localeCompare(b.key));
+
+  return {
+    subtype: String(item.subtype || item.type || 'Node'),
+    id: item.id != null && item.id !== '' ? String(item.id) : '',
+    path,
+    boundingRect: br && typeof br === 'object'
+      ? { x: br.x, y: br.y, width: br.width, height: br.height }
+      : null,
+    fields
+  };
+}
+
+// Read the full SceneGraph layer tree plus the currently focused node, all in one
+// TrackerTask session.
+//
+// When `showOverlay` is false (default), nothing is drawn on the TV:
+//   - `selectNode {path:[]}` primes m.currentNode so `selectFocusedNode` won't
+//     dereference an uninitialized field.
+//   - `hideSelectorView` forces m.showSelectorView=false, so `selectFocusedNode`
+//     won't (re)attach RALE's red box even if `init` was run in a prior call.
+//
+// When `showOverlay` is true, RALE's selector overlay is drawn around the focused
+// node:
+//   - `init` creates the selector view (and primes m.currentNode).
+//   - `showSelectorView` ensures m.showSelectorView=true (init only sets it the
+//     first time the view is created).
+//   - `selectFocusedNode` then attaches the box to the focused node.
+async function readLayout(host, port, showOverlay = false) {
+  const prelude = showOverlay
+    ? [
+        // logVerbosity must be a number: init does `if args.logVerbosity >= 0`,
+        // which throws on Invalid. -1 means "don't change RALE's log verbosity".
+        { command: 'init', args: { logVerbosity: -1 } },
+        { command: 'showSelectorView', args: {} }
+      ]
+    : [
+        { command: 'selectNode', args: { path: [] } },
+        { command: 'hideSelectorView', args: {} }
+      ];
+
+  const commands = [
+    ...prelude,
+    { command: 'getNodeTree', args: { path: [], maxLevel: 50 } },
+    { command: 'selectFocusedNode', args: {} }
+  ];
+
+  const results = await runTrackerCommands(host, commands, port);
+  const treeRaw = results[results.length - 2];
+  const focusedRaw = results[results.length - 1];
+  return { tree: normalizeTree(treeRaw), focused: normalizeFocused(focusedRaw) };
+}
+
+// Select a node by its index path (array of child indices from the root) and
+// return its data. `selectNode` returns the same { path, node } shape as
+// `selectFocusedNode`, and on the device it moves RALE's selector overlay to the
+// node when "Show on device" is enabled (a no-op otherwise).
+async function selectNode(host, port, path) {
+  const pathArg = (Array.isArray(path) ? path : []).map((i) => ({ child: i }));
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'selectNode', args: { path: pathArg } }
+  ], port);
+  return normalizeFocused(raw);
+}
+
 // Run a mutating command, then re-read in the same session so the renderer gets
 // fresh data in one round trip.
 async function mutateAndRead(host, command, args, port) {
@@ -187,6 +316,8 @@ async function importSections(host, sections, port) {
 module.exports = {
   DEFAULT_TRACKER_PORT,
   readRegistry,
+  readLayout,
+  selectNode,
   addRegistryField: (host, sectionName, key, value, port) =>
     mutateAndRead(host, 'addRegistryField', { sectionName, key, value }, port),
   editRegistryField: (host, sectionName, key, newKey, newValue, port) =>
