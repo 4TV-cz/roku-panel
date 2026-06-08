@@ -71,6 +71,10 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   resizer.addEventListener('pointerup', endDrag);
   resizer.addEventListener('pointercancel', endDrag);
 
+  // Cached design resolution — reused for the mini-map if a particular node's
+  // layout response omits it.
+  let lastResolution = null;
+
   const { element } = createCard({
     id: 'rale',
     title: 'RALE — Layout (read-only)',
@@ -152,12 +156,8 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     }
 
     const br = data.boundingRect;
-    if (br) {
-      const rect = document.createElement('div');
-      rect.className = 'rale-focused-rect';
-      rect.textContent = `x ${fmt(br.x)} · y ${fmt(br.y)} · w ${fmt(br.width)} · h ${fmt(br.height)}`;
-      focusedEl.appendChild(rect);
-    }
+    if (data.resolution) lastResolution = data.resolution;
+    const res = data.resolution || lastResolution;
 
     if (data.fields && data.fields.length) {
       const props = document.createElement('div');
@@ -167,6 +167,53 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
       renderEntries(props, data, Array.isArray(segments) ? segments : [], false);
       focusedEl.appendChild(props);
     }
+
+    // Mini-map of the node's bounds within the design resolution, in a
+    // collapsible section below the properties, with X/Y/W/H beside it.
+    if (br && res) {
+      const layout = document.createElement('div');
+      layout.className = 'rale-layout';
+      layout.appendChild(buildMiniMap(br, res));
+      layout.appendChild(buildLayoutValues(br));
+      focusedEl.appendChild(buildSection('Layout', layout));
+    }
+  }
+
+  // X/Y/Width/Height value grid shown to the right of the mini-map.
+  function buildLayoutValues(br) {
+    const dl = document.createElement('dl');
+    dl.className = 'rale-layout-values';
+    const rows = [['X', br.x], ['Y', br.y], ['Width', br.width], ['Height', br.height]];
+    for (const [k, v] of rows) {
+      const dt = document.createElement('dt');
+      dt.textContent = k;
+      const dd = document.createElement('dd');
+      dd.textContent = fmt(v);
+      dl.append(dt, dd);
+    }
+    return dl;
+  }
+
+  // A collapsible section with a clickable header and a body element.
+  function buildSection(title, body, collapsed = false) {
+    const sec = document.createElement('div');
+    sec.className = 'rale-section';
+    if (collapsed) sec.classList.add('collapsed');
+
+    const head = document.createElement('div');
+    head.className = 'rale-section-head';
+    head.innerHTML = '<span class="chevron" aria-hidden="true">▾</span>';
+    const label = document.createElement('span');
+    label.textContent = title;
+    head.appendChild(label);
+    head.addEventListener('click', () => sec.classList.toggle('collapsed'));
+
+    const bodyWrap = document.createElement('div');
+    bodyWrap.className = 'rale-section-body';
+    bodyWrap.appendChild(body);
+
+    sec.append(head, bodyWrap);
+    return sec;
   }
 
   // Render a value's fields (and, for drilled-in nodes, its children) as
@@ -290,6 +337,35 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   function fmt(n) {
     if (typeof n !== 'number') return String(n ?? '—');
     return Number.isInteger(n) ? String(n) : n.toFixed(1);
+  }
+
+  // A small wireframe of the node's bounding rect within the design resolution.
+  function buildMiniMap(br, res) {
+    const wrap = document.createElement('div');
+    wrap.className = 'rale-minimap';
+    // Reserve height from the screen aspect ratio (padding-bottom % of width) —
+    // works regardless of CSS aspect-ratio support.
+    wrap.style.paddingBottom = `${(res.height / res.width) * 100}%`;
+    wrap.title = `${res.width}×${res.height}`;
+
+    const rect = document.createElement('div');
+    rect.className = 'rale-minimap-rect';
+    // No clamping — off-screen nodes are clipped by overflow:hidden, which
+    // correctly shows them as partially/fully outside the screen.
+    const pct = (v, total) => `${(v / total) * 100}%`;
+    rect.style.left = pct(br.x, res.width);
+    rect.style.top = pct(br.y, res.height);
+    rect.style.width = pct(br.width, res.width);
+    rect.style.height = pct(br.height, res.height);
+    wrap.appendChild(rect);
+
+    const caption = document.createElement('div');
+    caption.className = 'rale-minimap-caption';
+    caption.textContent = `${res.width}×${res.height}`;
+    const frame = document.createElement('div');
+    frame.appendChild(wrap);
+    frame.appendChild(caption);
+    return frame;
   }
 
   function countNodes(node) {

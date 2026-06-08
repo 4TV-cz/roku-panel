@@ -168,39 +168,52 @@ async function readRegistry(host, port) {
 
 // --- RALE layout (read-only) -------------------------------------------------
 
+// Case-insensitive property lookup. The deployed TrackerTask serializes
+// associative-array keys in lowercase (`boundingrect`, `childrencount`,
+// `isexposed`, `fieldtype`), while some builds use camelCase. Read either.
+function ci(obj, name) {
+  if (!obj || typeof obj !== 'object') return undefined;
+  if (obj[name] !== undefined) return obj[name];
+  const lower = name.toLowerCase();
+  for (const k in obj) {
+    if (k.toLowerCase() === lower) return obj[k];
+  }
+  return undefined;
+}
+
+function idOf(v) {
+  return v != null && v !== '' ? String(v) : '';
+}
+
 // Flatten a getNodeTree node ({ item, childList }) into a lean renderer shape.
 // RALE's own helper nodes carry isExposed=true; drop them defensively (with
 // `init` skipped they shouldn't exist, but the desktop RALE app may inject them
 // into the same running channel).
 function normalizeNode(n) {
   if (!n || typeof n !== 'object') return null;
-  const item = n.item || {};
-  // BrightScript AAs are case-insensitive; the device may emit `childList` or
-  // `childlist` depending on which key case was written first. Accept either.
-  const childrenRaw = Array.isArray(n.childList)
-    ? n.childList
-    : Array.isArray(n.childlist)
-      ? n.childlist
-      : [];
+  const item = ci(n, 'item') || {};
+  const childrenRaw = Array.isArray(ci(n, 'childList')) ? ci(n, 'childList') : [];
   const children = [];
   for (const c of childrenRaw) {
-    if (!c || (c.item && c.item.isExposed)) continue;
+    const cItem = ci(c, 'item');
+    if (!c || (cItem && ci(cItem, 'isExposed'))) continue;
     const norm = normalizeNode(c);
     if (norm) children.push(norm);
   }
+  const childrenCount = ci(item, 'childrenCount');
   return {
-    subtype: String(item.subtype || item.type || 'Node'),
-    id: item.id != null && item.id !== '' ? String(item.id) : '',
+    subtype: String(ci(item, 'subtype') || ci(item, 'type') || 'Node'),
+    id: idOf(ci(item, 'id')),
     // Real child index within the parent (stable even when siblings are pruned),
     // so the focused-node path can be matched against it.
-    index: typeof item.index === 'number' ? item.index : null,
-    childCount: typeof item.childrenCount === 'number' ? item.childrenCount : children.length,
+    index: typeof ci(item, 'index') === 'number' ? ci(item, 'index') : null,
+    childCount: typeof childrenCount === 'number' ? childrenCount : children.length,
     children
   };
 }
 
 function normalizeTree(raw) {
-  if (!raw || raw.error) return null;
+  if (!raw || ci(raw, 'error')) return null;
   return normalizeNode(raw);
 }
 
@@ -210,27 +223,32 @@ function normalizeTree(raw) {
 // it is itself an object (drillable) and which kind, so the renderer can expand
 // it on demand.
 function normalizeNodeData(raw) {
-  if (!raw || raw.error) return null;
-  const item = raw.item || {};
-  const layout = raw.layout && !raw.layout.error ? raw.layout : {};
-  const br = layout.boundingRect;
-  const isNode = item.type === 'roSGNode' || !!item.subtype;
+  if (!raw || ci(raw, 'error')) return null;
+  const item = ci(raw, 'item') || {};
+  const layoutRaw = ci(raw, 'layout');
+  const layout = layoutRaw && !ci(layoutRaw, 'error') ? layoutRaw : {};
+  const br = ci(layout, 'boundingRect');
+  const res = ci(layout, 'resolution');
+  const isNode = ci(item, 'type') === 'roSGNode' || !!ci(item, 'subtype');
 
   const fields = [];
-  const fl = raw.fieldlist || {};
+  const fl = ci(raw, 'fieldlist') || {};
   for (const key of Object.keys(fl)) {
-    const fi = (fl[key] && fl[key].item) || {};
-    const type = String(fi.fieldType || fi.type || '');
-    const object = fi.value === '{object}';
+    const fi = (fl[key] && ci(fl[key], 'item')) || {};
+    const type = String(ci(fi, 'fieldType') || ci(fi, 'type') || '');
+    const subtypeVal = ci(fi, 'subtype');
+    const typeVal = ci(fi, 'type');
+    const value0 = ci(fi, 'value');
+    const object = value0 === '{object}';
     let kind = '';
     let value;
     if (object) {
       // RALE reports a single "{object}" for node/array/assocarray values.
-      if (fi.subtype || /\bnode\b/i.test(type)) { kind = 'node'; value = fi.subtype ? `<${fi.subtype}>` : '<node>'; }
-      else if (fi.type === 'roArray' || /array/i.test(type)) { kind = 'array'; value = '[ … ]'; }
+      if (subtypeVal || /\bnode\b/i.test(type)) { kind = 'node'; value = subtypeVal ? `<${subtypeVal}>` : '<node>'; }
+      else if (typeVal === 'roArray' || /array/i.test(type)) { kind = 'array'; value = '[ … ]'; }
       else { kind = 'assoc'; value = '{ … }'; }
     } else {
-      value = String(fi.value ?? '');
+      value = String(value0 ?? '');
     }
     fields.push({ key, value, type, object, kind });
   }
@@ -238,26 +256,33 @@ function normalizeNodeData(raw) {
   fields.sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
 
   const children = [];
-  const cl = Array.isArray(raw.childlist) ? raw.childlist
-    : Array.isArray(raw.childList) ? raw.childList : [];
+  const cl = Array.isArray(ci(raw, 'childlist')) ? ci(raw, 'childlist') : [];
   for (const c of cl) {
-    if (!c || (c.item && c.item.isExposed)) continue;
-    const ci = c.item || {};
+    const cItem = ci(c, 'item');
+    if (!c || (cItem && ci(cItem, 'isExposed'))) continue;
+    const it = cItem || {};
+    const cc = ci(it, 'childrenCount');
     children.push({
-      index: typeof ci.index === 'number' ? ci.index : null,
-      subtype: String(ci.subtype || ci.type || 'Node'),
-      id: ci.id != null && ci.id !== '' ? String(ci.id) : '',
-      childCount: typeof ci.childrenCount === 'number' ? ci.childrenCount : 0
+      index: typeof ci(it, 'index') === 'number' ? ci(it, 'index') : null,
+      subtype: String(ci(it, 'subtype') || ci(it, 'type') || 'Node'),
+      id: idOf(ci(it, 'id')),
+      childCount: typeof cc === 'number' ? cc : 0
     });
   }
 
+  const rw = br && typeof br === 'object' ? ci(br, 'width') : null;
+  const rh = br && typeof br === 'object' ? ci(br, 'height') : null;
+  const resW = res && typeof res === 'object' ? ci(res, 'width') : null;
+  const resH = res && typeof res === 'object' ? ci(res, 'height') : null;
+
   return {
-    subtype: String(item.subtype || item.type || 'Node'),
-    id: item.id != null && item.id !== '' ? String(item.id) : '',
+    subtype: String(ci(item, 'subtype') || ci(item, 'type') || 'Node'),
+    id: idOf(ci(item, 'id')),
     isNode,
     boundingRect: br && typeof br === 'object'
-      ? { x: br.x, y: br.y, width: br.width, height: br.height }
+      ? { x: ci(br, 'x'), y: ci(br, 'y'), width: rw, height: rh }
       : null,
+    resolution: resW > 0 && resH > 0 ? { width: resW, height: resH } : null,
     fields,
     children
   };
@@ -265,12 +290,13 @@ function normalizeNodeData(raw) {
 
 // selectFocusedNode / selectNode return { path: [{child:N},...], node }.
 function normalizeFocused(raw) {
-  if (!raw || raw.error) return null;
-  const data = normalizeNodeData(raw.node || {});
+  if (!raw || ci(raw, 'error')) return null;
+  const data = normalizeNodeData(ci(raw, 'node') || {});
   if (!data) return null;
-  const path = Array.isArray(raw.path)
-    ? raw.path
-        .map((seg) => (seg && typeof seg === 'object' && typeof seg.child === 'number' ? seg.child : null))
+  const pathRaw = ci(raw, 'path');
+  const path = Array.isArray(pathRaw)
+    ? pathRaw
+        .map((seg) => { const c = ci(seg, 'child'); return typeof c === 'number' ? c : null; })
         .filter((v) => v !== null)
     : [];
   return { ...data, path };
