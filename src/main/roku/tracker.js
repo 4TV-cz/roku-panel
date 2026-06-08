@@ -328,6 +328,15 @@ async function selectNode(host, port, path) {
   return normalizeFocused(raw);
 }
 
+// Query the currently focused node (path + data) without re-reading the tree.
+// Honors the current on-device overlay state, like selectNode.
+async function selectFocused(host, port) {
+  const [raw] = await runTrackerCommands(host, [
+    { command: 'selectFocusedNode', args: {} }
+  ], port);
+  return normalizeFocused(raw);
+}
+
 // Read a value's data by an explicit RALE path: an array of segments, each
 // { child: N } (descend into a node's child) or { field: K } (descend into a
 // node field, array element, or assocarray key). Pure read — no selection or
@@ -368,6 +377,7 @@ module.exports = {
   readRegistry,
   readLayout,
   selectNode,
+  selectFocused,
   getNodeDataAt,
   addRegistryField: (host, sectionName, key, value, port) =>
     mutateAndRead(host, 'addRegistryField', { sectionName, key, value }, port),

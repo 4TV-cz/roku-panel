@@ -54,5 +54,6 @@ contextBridge.exposeInMainWorld('rokuPanel', {
   clearDeviceRegistry: () => ipcRenderer.invoke('registry:clear'),
   readRaleLayout: (opts) => ipcRenderer.invoke('rale:readLayout', opts),
   raleSelectNode: (opts) => ipcRenderer.invoke('rale:selectNode', opts),
+  raleSelectFocused: () => ipcRenderer.invoke('rale:selectFocused'),
   raleGetNodeData: (opts) => ipcRenderer.invoke('rale:getNodeData', opts)
 });

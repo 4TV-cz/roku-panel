@@ -6,6 +6,7 @@ import { createCard, btn } from '../components/card.js';
 // is the only action — nothing here mutates the device.
 export function createRaleView({ initialCollapsed = false, showOverlay = false, detailsWidth } = {}) {
   const refreshBtn = btn('Refresh', { primary: true });
+  const selectFocusedBtn = btn('Select Focused');
 
   // Checkbox: when on, RALE draws its selector overlay around the focused node on
   // the running device. Default off — nothing is drawn on the TV.
@@ -74,7 +75,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     id: 'rale',
     title: 'RALE — Layout (read-only)',
     initialCollapsed,
-    actions: [overlayToggle, refreshBtn],
+    actions: [overlayToggle, selectFocusedBtn, refreshBtn],
     body,
     // Auto-read whenever the panel is expanded.
     onToggle: (collapsed) => { if (!collapsed) refresh(); }
@@ -84,6 +85,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   function setBusy(b) {
     busy = b;
     refreshBtn.disabled = b;
+    selectFocusedBtn.disabled = b;
     overlayCheck.disabled = b;
   }
 
@@ -304,18 +306,32 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   const rowByKey = new Map();     // path key -> tree row element
   const keyOf = (path) => path.join('/');
 
-  // Highlight the selected node and its parent chain in the tree.
+  // Highlight the selected node and its parent chain in the tree, expanding the
+  // chain so the node is visible even if it was under collapsed branches.
   function applySelection(path) {
     rowByKey.forEach((row) => row.classList.remove('selected', 'ancestor'));
     for (let i = 0; i < path.length; i += 1) {
       const row = rowByKey.get(keyOf(path.slice(0, i)));
-      if (row) row.classList.add('ancestor');
+      if (!row) continue;
+      row.classList.add('ancestor');
+      const li = row.closest('.rale-node');
+      if (li) li.classList.remove('collapsed');
+      const tog = row.querySelector('.rale-node-toggle');
+      if (tog) tog.setAttribute('aria-expanded', 'true');
     }
     const sel = rowByKey.get(keyOf(path));
     if (sel) {
       sel.classList.add('selected');
       sel.scrollIntoView({ block: 'nearest' });
     }
+  }
+
+  // Mark which node currently holds focus on the device (the ◉ badge),
+  // independent of what is selected for inspection.
+  function setFocusedMarker(path) {
+    rowByKey.forEach((row) => row.classList.remove('is-focused'));
+    const row = rowByKey.get(keyOf(path));
+    if (row) row.classList.add('is-focused');
   }
 
   // Select a node by its index path: highlight it, then fetch + show its data.
@@ -348,7 +364,6 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     const li = document.createElement('li');
     li.className = 'rale-node';
 
-    const isFocused = branchPath !== null && branchPath.length === 0;
     const onFocusBranch = branchPath !== null && branchPath.length > 0;
     const hasChildren = node.children && node.children.length > 0;
 
@@ -359,7 +374,6 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
 
     const row = document.createElement('div');
     row.className = 'rale-node-row';
-    if (isFocused) row.classList.add('is-focused');
     row.addEventListener('click', () => selectByPath(path));
     rowByKey.set(keyOf(path), row);
 
@@ -445,6 +459,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
       const focusedPath = (res.focused && res.focused.path) || [];
       focusedKey = keyOf(focusedPath);
       renderTree(res.tree, focusedPath);
+      setFocusedMarker(focusedPath);
       // Initial selection follows the focused node.
       applySelection(focusedPath);
       renderDetails(res.focused, pathNodes(res.tree, focusedPath), 'Focused', focusedPath.map((i) => ({ child: i })));
@@ -457,7 +472,40 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     }
   }
 
+  // Re-query the focused node and select it — without re-reading the whole tree.
+  // Useful after moving focus with the Remote panel. Falls back to a full
+  // refresh if focus moved to a node not in the currently loaded tree (or the
+  // channel restarted and the focused query came back empty).
+  async function selectFocused() {
+    if (busy) return;
+    const seq = ++selectSeq;
+    statusEl.textContent = 'Reading focused node…';
+    try {
+      const res = await api.raleSelectFocused();
+      if (seq !== selectSeq) return;
+      if (!res.ok) {
+        statusEl.textContent = `Select focused failed: ${res.error}`;
+        return;
+      }
+      const focused = res.node;
+      const fpath = (focused && focused.path) || [];
+      if (!focused || !rowByKey.has(keyOf(fpath))) {
+        // Tree is stale for the new focus — reload it (refresh selects focus).
+        await refresh();
+        return;
+      }
+      focusedKey = keyOf(fpath);
+      setFocusedMarker(fpath);
+      applySelection(fpath);
+      renderDetails(focused, pathNodes(currentTree, fpath), 'Focused', fpath.map((i) => ({ child: i })));
+      statusEl.textContent = 'Selected focused node.';
+    } catch (err) {
+      statusEl.textContent = `Select focused failed: ${err.message}`;
+    }
+  }
+
   refreshBtn.addEventListener('click', refresh);
+  selectFocusedBtn.addEventListener('click', selectFocused);
 
   if (!initialCollapsed) refresh();
 
