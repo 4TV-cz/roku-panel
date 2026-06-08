@@ -33,7 +33,12 @@ export function createRegistryView({ initialCollapsed = false } = {}) {
   const collapsedSections = new Set();
   function setBusy(b) {
     busy = b;
-    element.querySelectorAll('button, input, textarea').forEach((el) => { el.disabled = b; });
+    // Disable everything while a call is in flight, except the header collapse
+    // toggle — the user must always be able to fold the panel, even mid-refresh.
+    element.querySelectorAll('button, input, textarea').forEach((el) => {
+      if (el.classList.contains('card-toggle')) return;
+      el.disabled = b;
+    });
   }
 
   // Run a registry IPC call that returns { ok, registry, error }, render the
