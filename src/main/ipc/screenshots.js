@@ -25,13 +25,12 @@ function register(ipcMain) {
     if (!fs.existsSync(SCREENSHOT_DIR)) return [];
     return fs.readdirSync(SCREENSHOT_DIR)
       .filter((f) => /\.(jpg|jpeg|png|webm|mp4)$/i.test(f))
-      .sort()
-      .reverse()
       .map((filename) => {
         const stat = fs.statSync(path.join(SCREENSHOT_DIR, filename));
         const isVideo = /\.(webm|mp4)$/i.test(filename);
         return { filename, mtime: stat.mtimeMs, size: stat.size, kind: isVideo ? 'video' : 'image' };
-      });
+      })
+      .sort((a, b) => b.mtime - a.mtime);
   });
 
   ipcMain.handle('screenshots:open', (_evt, filename) => {

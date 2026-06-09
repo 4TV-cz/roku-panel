@@ -343,9 +343,9 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
   function buildMiniMap(br, res) {
     const wrap = document.createElement('div');
     wrap.className = 'rale-minimap';
-    // Reserve height from the screen aspect ratio (padding-bottom % of width) —
-    // works regardless of CSS aspect-ratio support.
-    wrap.style.paddingBottom = `${(res.height / res.width) * 100}%`;
+    // Match the screen aspect ratio off the element's own width (padding-bottom %
+    // is relative to the container width, which differs once max-width caps us).
+    wrap.style.aspectRatio = `${res.width} / ${res.height}`;
     wrap.title = `${res.width}×${res.height}`;
 
     const rect = document.createElement('div');
@@ -363,6 +363,7 @@ export function createRaleView({ initialCollapsed = false, showOverlay = false, 
     caption.className = 'rale-minimap-caption';
     caption.textContent = `${res.width}×${res.height}`;
     const frame = document.createElement('div');
+    frame.className = 'rale-minimap-frame';
     frame.appendChild(wrap);
     frame.appendChild(caption);
     return frame;

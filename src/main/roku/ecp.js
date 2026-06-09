@@ -62,7 +62,10 @@ function pingDevice(host, timeoutMs = 1500) {
           software: pick('software-version'),
           build: pick('software-build'),
           serial: pick('serial-number'),
-          developer: pick('developer-enabled')
+          developer: pick('developer-enabled'),
+          // UI render resolution: "720p" / "1080p" (Roku renders SceneGraph at
+          // one of these; 4K is a video-output capability, not a UI resolution).
+          uiResolution: pick('ui-resolution')
         });
       });
     });

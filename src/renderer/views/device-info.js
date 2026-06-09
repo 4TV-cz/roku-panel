@@ -11,16 +11,24 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
     initialCollapsed,
     actions: [discoverBtn, openBrowserBtn],
     body: `
-      <dl class="device-info" hidden>
-        <div class="device-info-row">
-          <dt>Model</dt>
-          <dd class="device-model">—</dd>
-        </div>
-        <div class="device-info-row">
-          <dt>Version</dt>
-          <dd class="device-version">—</dd>
-        </div>
-      </dl>
+      <div class="device-info" hidden>
+        <dl class="device-info-grid">
+          <div class="device-info-row">
+            <dt>Model</dt>
+            <dd class="device-model">—</dd>
+          </div>
+          <div class="device-info-row">
+            <dt>Version</dt>
+            <dd class="device-version">—</dd>
+          </div>
+        </dl>
+        <dl class="device-info-grid">
+          <div class="device-info-row">
+            <dt>Resolution</dt>
+            <dd class="device-resolution">—</dd>
+          </div>
+        </dl>
+      </div>
       <div class="status js-status"></div>
       <ul class="device-list"></ul>
     `
@@ -31,6 +39,7 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
   const deviceInfoEl = element.querySelector('.device-info');
   const deviceModelEl = element.querySelector('.device-model');
   const deviceVersionEl = element.querySelector('.device-version');
+  const deviceResolutionEl = element.querySelector('.device-resolution');
 
   function renderDevices(devices) {
     deviceList.innerHTML = '';
@@ -116,6 +125,7 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
       const versionLabel = [info.software, info.build].filter(Boolean).join('.') || '—';
       deviceModelEl.textContent = modelLabel;
       deviceVersionEl.textContent = versionLabel;
+      deviceResolutionEl.textContent = info.uiResolution || '—';
       deviceInfoEl.hidden = false;
     } else {
       deviceInfoEl.hidden = true;
