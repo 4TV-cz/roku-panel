@@ -2,6 +2,8 @@
 
 Electron desktop app for controlling a Roku device during development. Wraps the ECP (External Control Protocol) and sideload server endpoints in a single UI.
 
+![Roku dev panel](assets/roku-panel.png)
+
 ## Features
 
 - **Device info** — LAN discovery, ping, live model/software version, open the dev web UI, reboot, check for updates.
