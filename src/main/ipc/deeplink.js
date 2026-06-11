@@ -4,15 +4,15 @@ const { saveConfig } = require('../config');
 
 const HOST_NOT_SET = 'device host not set — run discover or edit config.deviceHost';
 
-function rememberParams(params) {
-  if (Array.isArray(params)) saveConfig({ deeplinkParams: params });
+function rememberParams(params, rememberKey) {
+  if (rememberKey && Array.isArray(params)) saveConfig({ [rememberKey]: params });
 }
 
 function register(ipcMain) {
-  ipcMain.handle('deeplink:launch', async (_evt, { appId = 'dev', params } = {}) => {
+  ipcMain.handle('deeplink:launch', async (_evt, { appId = 'dev', params, rememberKey } = {}) => {
     const host = getDeviceHost();
     if (!host) return { ok: false, error: HOST_NOT_SET };
-    rememberParams(params);
+    rememberParams(params, rememberKey);
     try {
       const res = await launch(host, appId, params);
       return { ok: true, message: `POST ${res.path} → ${res.statusCode}`, path: res.path };
@@ -21,10 +21,10 @@ function register(ipcMain) {
     }
   });
 
-  ipcMain.handle('deeplink:input', async (_evt, { params } = {}) => {
+  ipcMain.handle('deeplink:input', async (_evt, { params, rememberKey } = {}) => {
     const host = getDeviceHost();
     if (!host) return { ok: false, error: HOST_NOT_SET };
-    rememberParams(params);
+    rememberParams(params, rememberKey);
     try {
       const res = await sendInput(host, params);
       return { ok: true, message: `POST ${res.path} → ${res.statusCode}`, path: res.path };

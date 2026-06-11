@@ -4,6 +4,15 @@
 
 ### Added
 
+- **Deeplink — multiple sets** — The Deeplink panel now supports any number of
+  parameter **sets** instead of a fixed two. Each set is independently
+  collapsible and has its own **+ Add parameter** rows and **Send Launch** /
+  **Send Input** buttons. Add or remove sets with **+ Add set** / **Remove**;
+  sets auto-renumber. The last-clicked send button in each set is highlighted
+  purple and remembered. All set state (params, collapsed, last-used button) is
+  persisted to `config.deeplinkSets`, migrated automatically from the legacy
+  `deeplinkParams` / `deeplinkParams2` / `deeplinkParams3` keys on first load.
+
 - **RALE — Layout (read-only)** — A lightweight, read-only Roku Advanced Layout
   Editor panel over the same RALE TrackerTask socket as the Registry inspector.
   Two columns split by a draggable splitter (default 50%, persisted to
