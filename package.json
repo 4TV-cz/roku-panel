@@ -5,6 +5,7 @@
   "private": true,
   "main": "src/main/main.js",
   "scripts": {
+    "postinstall": "node scripts/init-config.js",
     "start": "electron .",
     "dev": "electronmon .",
     "build": "electron-builder --dir --win",

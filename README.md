@@ -36,17 +36,16 @@ First launch reads `config.json`. If `deviceHost` is empty, click **Get Roku IP*
 
 ## Configuration
 
-`config.json` lives at the project root. You normally only set `deviceHost` and `deviceCredentials` by hand — everything else is managed by the UI.
+`npm install` creates `config.json` at the project root with default values (it never overwrites an existing one). The **only value you must add by hand is your dev-mode password** (`deviceCredentials.password`):
 
 ```json
 {
-  "version": 1,
-  "deviceHost": "192.168.1.100",
   "deviceCredentials": {
-    "username": "rokudev",
-    "password": "<dev mode password>"
+    "password": "<your dev mode password>"
   }
 }
 ```
 
-`deviceCredentials.password` is required for Screenshot, Open in browser, and Deploy (HTTP Digest auth on port 80).
+This is the password you set when enabling Developer Mode on the Roku, and it's required for Screenshot, Open in browser, and Deploy (HTTP Digest auth on port 80).
+
+Everything else is handled for you: `deviceCredentials.username` defaults to `rokudev`, `deviceHost` is filled in by the **Get Roku IP** button, and all other fields are managed by the UI.
