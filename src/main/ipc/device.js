@@ -1,7 +1,6 @@
 const { shell } = require('electron');
 const { findRokuDevices } = require('../roku/discover');
 const { pingDevice } = require('../roku/ecp');
-const { reboot, checkForUpdate } = require('../roku/sequences');
 const { getDeviceHost, setDeviceHost } = require('../device');
 const { openDeviceBrowser } = require('../window');
 
@@ -41,29 +40,6 @@ function register(ipcMain) {
     openDeviceBrowser(host);
     return { ok: true };
   });
-
-  ipcMain.handle('roku:reboot', async () => {
-    const host = getDeviceHost();
-    if (!host) return { ok: false, error: HOST_NOT_SET };
-    try {
-      const info = await reboot(host);
-      return { ok: true, ...info };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  });
-
-  ipcMain.handle('roku:checkForUpdate', async () => {
-    const host = getDeviceHost();
-    if (!host) return { ok: false, error: HOST_NOT_SET };
-    try {
-      const info = await checkForUpdate(host);
-      return { ok: true, ...info };
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  });
-
 }
 
 module.exports = { register };

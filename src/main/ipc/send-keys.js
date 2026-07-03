@@ -1,5 +1,6 @@
 const { signIn, sendUsername, sendPassword } = require('../roku/signin');
 const { sendText } = require('../roku/ecp');
+const { reboot, checkForUpdate } = require('../roku/sequences');
 const { getDeviceHost } = require('../device');
 
 const HOST_NOT_SET = 'device host not set — run discover or edit config.deviceHost';
@@ -37,6 +38,28 @@ function register(ipcMain) {
       return Promise.resolve({ ok: false, error: 'text is required' });
     }
     return withHost((host) => sendText(host, text))();
+  });
+
+  ipcMain.handle('roku:reboot', async () => {
+    const host = getDeviceHost();
+    if (!host) return { ok: false, error: HOST_NOT_SET };
+    try {
+      const info = await reboot(host);
+      return { ok: true, ...info };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('roku:checkForUpdate', async () => {
+    const host = getDeviceHost();
+    if (!host) return { ok: false, error: HOST_NOT_SET };
+    try {
+      const info = await checkForUpdate(host);
+      return { ok: true, ...info };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
   });
 }
 

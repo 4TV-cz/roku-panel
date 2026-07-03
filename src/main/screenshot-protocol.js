@@ -2,7 +2,7 @@ const { protocol, net } = require('electron');
 const { pathToFileURL } = require('url');
 const path = require('path');
 const fs = require('fs');
-const { SCREENSHOT_DIR } = require('./paths');
+const { getMediaDirs } = require('./paths');
 
 function registerScheme() {
   protocol.registerSchemesAsPrivileged([
@@ -17,9 +17,11 @@ function handleProtocol() {
     if (!filename || !/\.(jpg|jpeg|png|webm|mp4)$/i.test(filename)) {
       return new Response('Not found', { status: 404 });
     }
-    const fullpath = path.join(SCREENSHOT_DIR, filename);
-    if (!fs.existsSync(fullpath)) return new Response('Not found', { status: 404 });
-    return net.fetch(pathToFileURL(fullpath).toString());
+    for (const dir of getMediaDirs()) {
+      const fullpath = path.join(dir, filename);
+      if (fs.existsSync(fullpath)) return net.fetch(pathToFileURL(fullpath).toString());
+    }
+    return new Response('Not found', { status: 404 });
   });
 }
 

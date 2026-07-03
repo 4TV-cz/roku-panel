@@ -1,4 +1,4 @@
-import { api, emit } from '../api.js';
+import { api, emit, on } from '../api.js';
 import { createCard, btn } from '../components/card.js';
 
 export function createCaptureView({ initialCollapsed = false } = {}) {
@@ -28,6 +28,8 @@ export function createCaptureView({ initialCollapsed = false } = {}) {
   let recorder = null;
   let recordedChunks = [];
   let recordedExt = 'webm';
+  let recordingResolution = 1080;
+  let recordingFormat = 'webm';
 
   async function ensureLabelAccess() {
     if (labelAccessGranted || collapsed) return;
@@ -86,9 +88,11 @@ export function createCaptureView({ initialCollapsed = false } = {}) {
     const deviceId = deviceSelect.value;
     if (!deviceId) return;
     stop();
+    const height = recordingResolution === 720 ? 720 : 1080;
+    const width = Math.round((height * 16) / 9);
     try {
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+        video: { deviceId: { exact: deviceId }, width: { ideal: width }, height: { ideal: height } },
         audio: false
       });
       video.srcObject = stream;
@@ -100,7 +104,11 @@ export function createCaptureView({ initialCollapsed = false } = {}) {
   }
 
   function pickRecorderMime() {
-    const candidates = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4'];
+    const webm = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
+    const mp4 = ['video/mp4;codecs=h264', 'video/mp4'];
+    // Honour the configured format first, but fall back to the other container
+    // if the platform's MediaRecorder can't encode it.
+    const candidates = recordingFormat === 'mp4' ? [...mp4, ...webm] : [...webm, ...mp4];
     for (const m of candidates) {
       if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(m)) return m;
     }
@@ -194,9 +202,23 @@ export function createCaptureView({ initialCollapsed = false } = {}) {
   });
   element.classList.add('capture-card');
 
+  function applyRecordingConfig(cfg) {
+    recordingResolution = cfg.recordingResolution === 720 ? 720 : 1080;
+    recordingFormat = cfg.recordingFormat === 'mp4' ? 'mp4' : 'webm';
+  }
+
+  // Recording prefs changed in the settings dialog — re-read them and restart
+  // the stream so a new resolution takes effect immediately.
+  on('config:changed', async () => {
+    const prevResolution = recordingResolution;
+    applyRecordingConfig(await api.getConfig());
+    if (recordingResolution !== prevResolution && !collapsed) start();
+  });
+
   (async () => {
     const cfg = await api.getConfig();
     savedDeviceId = cfg.captureDeviceId || null;
+    applyRecordingConfig(cfg);
     await refreshDevices();
     start();
   })();

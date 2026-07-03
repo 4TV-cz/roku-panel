@@ -8,6 +8,7 @@ loadConfig(CONFIG_FILE);
 registerScheme();
 
 require('./ipc/config').register(ipcMain);
+require('./ipc/settings').register(ipcMain);
 require('./ipc/device').register(ipcMain);
 require('./ipc/screenshots').register(ipcMain);
 require('./ipc/telnet').register(ipcMain, app);

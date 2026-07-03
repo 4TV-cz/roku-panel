@@ -73,6 +73,31 @@ body {
   letter-spacing: 0.3px;
 }
 
+.settings-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  color: var(--fg-dim);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-btn:hover {
+  color: var(--fg);
+  background: #333;
+  border-color: #444;
+}
+
+.settings-btn svg {
+  display: block;
+}
+
 .app-main {
   padding: 20px;
   display: flex;
@@ -1422,4 +1447,59 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* --- settings dialog --- */
+
+.settings-modal {
+  width: min(620px, calc(100vw - 48px));
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--fg-dim);
+}
+
+.settings-input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-input-group .settings-path {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.settings-input-group .btn {
+  white-space: nowrap;
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: var(--fg-dim);
+  min-height: 14px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.settings-select {
+  align-self: flex-start;
+  min-width: 200px;
 }

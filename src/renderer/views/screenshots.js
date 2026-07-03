@@ -70,6 +70,14 @@ export function createScreenshotsView({ initialCollapsed = false } = {}) {
       e.stopPropagation();
       const thumb = delBtn.closest('.screenshot-thumb');
       const filename = thumb.dataset.filename;
+      // Release any open file handle the <video> holds, otherwise Windows
+      // refuses to delete the file (EBUSY: resource busy or locked).
+      const video = thumb.querySelector('video');
+      if (video) {
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+      }
       const res = await api.deleteScreenshot(filename);
       if (res.ok) {
         statusEl.textContent = `Deleted ${filename}`;

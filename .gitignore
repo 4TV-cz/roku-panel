@@ -3,5 +3,6 @@ node_modules/
 config.json
 out/
 dist/
+bin/
 screenshots/
 TODO.md

@@ -24,12 +24,9 @@ function fetchModelNumber(host, timeoutMs = 2000) {
 function rebootKeysForModel(modelNumber) {
   const n = parseInt(String(modelNumber).substring(0, 4), 10);
   if (!Number.isFinite(n)) throw new Error(`Cannot parse model number "${modelNumber}"`);
-  if (n >= 4000) {
-    return ['Home', 'Home', 'Up', 'Right', 'Up', 'Right', 'Up', 'Up', 'Right', 'Down', 'Select', 'Select'];
-  }
-  if (n >= 3800) {
-    return ['Home', 'Home', 'Up', 'Select', 'Up', 'Select', 'Down', 'Down', 'Down', 'Down', 'Down', 'Down', 'Down', 'Select', 'Down', 'Select', 'Select'];
-  }
+  if (n >= 4000) {    
+	return ['home', 'home', "left", 'up', 'select', 'up', 'select', 'up', 'up', 'right', 'down', 'select', 'select'];
+  }  
   throw new Error(`Unknown reboot sequence for model ${modelNumber}`);
 }
 
@@ -37,7 +34,7 @@ function checkForUpdateKeysForModel(modelNumber) {
   const n = parseInt(String(modelNumber).substring(0, 4), 10);
   if (!Number.isFinite(n)) throw new Error(`Cannot parse model number "${modelNumber}"`);
   if (n >= 4000) {
-    return ['Home', 'Up', 'Right', 'Up', 'Right', 'Up', 'Up', 'Up', 'Select', 'Select'];
+      return ['home', 'home', "left", 'up', 'select', 'up', 'right', 'up', 'up', 'up', 'select', 'select'];
   }
   throw new Error(`Unknown check-for-update sequence for model ${modelNumber}`);
 }

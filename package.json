@@ -9,6 +9,7 @@
     "start": "electron .",
     "dev": "electronmon .",
     "build": "electron-builder --dir --win",
+    "portable": "electron-builder --win zip --publish never",
     "release": "electron-builder --publish always"
   },
   "electronmon": {
@@ -33,19 +34,25 @@
     },
     "win": {
       "icon": "assets/icon.png",
-      "target": ["nsis", "zip"]
+      "target": ["zip"],
+      "artifactName": "${productName}-${os}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName} Setup ${version}.${ext}"
     },
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": [
         { "target": "dmg", "arch": ["x64", "arm64"] },
         { "target": "zip", "arch": ["x64", "arm64"] }
-      ]
+      ],
+      "artifactName": "${productName}-${os}-${arch}.${ext}"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "publish": [
       {

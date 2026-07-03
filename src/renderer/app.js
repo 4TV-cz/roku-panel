@@ -10,9 +10,13 @@ import { createDeeplinkView } from './views/deeplink.js';
 import { createRegistryView } from './views/registry.js';
 import { createRaleView } from './views/rale.js';
 import { createStatusBar } from './views/status-bar.js';
+import { openSettingsDialog } from './components/settings-dialog.js';
 
 const content = $('#content');
 const sidebar = $('#sidebar');
+
+const settingsBtn = $('#settings-btn');
+if (settingsBtn) settingsBtn.addEventListener('click', () => openSettingsDialog());
 
 // --- card reordering ---
 
