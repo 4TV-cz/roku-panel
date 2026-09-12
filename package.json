@@ -8,9 +8,9 @@
     "postinstall": "node scripts/init-config.js",
     "start": "electron .",
     "dev": "electronmon .",
-    "build": "electron-builder --dir --win",
-    "portable": "electron-builder --win zip --publish never",
-    "release": "electron-builder --publish always"
+    "build:mac": "electron-builder --dir --mac --arm64 -c.extraMetadata.projectRoot=\"$PWD\" && npm run sign:mac",
+    "build:win": "electron-builder --dir --win --x64",
+    "sign:mac": "codesign --force --deep --sign - --identifier com.rokupanel.app \"dist/mac-arm64/Roku dev panel.app\""
   },
   "electronmon": {
     "patterns": [
@@ -33,38 +33,20 @@
       "output": "dist"
     },
     "win": {
-      "icon": "assets/icon.png",
-      "target": ["zip"],
-      "artifactName": "${productName}-${os}-${arch}.${ext}"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
-      "artifactName": "${productName} Setup ${version}.${ext}"
+      "icon": "assets/icon.png"
     },
     "mac": {
       "category": "public.app-category.developer-tools",
-      "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] },
-        { "target": "zip", "arch": ["x64", "arm64"] }
-      ],
-      "artifactName": "${productName}-${os}-${arch}.${ext}"
-    },
-    "dmg": {
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "4TV-cz",
-        "repo": "roku-panel"
+      "icon": "assets/icon-mac.png",
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Roku dev panel finds Roku devices on your network and sends them remote-control, deploy and screenshot commands."
       }
-    ]
+    }
   },
   "devDependencies": {
     "electron": "^33.0.0",
     "electron-builder": "^24.13.3",
     "electronmon": "^2.0.3"
-  }
+  },
+  "author": "4TV"
 }

@@ -524,6 +524,67 @@ body {
   flex: 1;
 }
 
+.macro-hint {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.macros {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.macro-empty {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+.macro-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.macro-name {
+  min-width: 0;
+  width: 100%;
+}
+
+.macro-keys {
+  font-size: 12px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn.macro-remove {
+  padding: 0 10px;
+  line-height: 1;
+  font-size: 16px;
+  color: var(--fg-dim);
+}
+
+.deeplink-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.btn.deeplink-quick {
+  padding: 4px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .deeplink-set + .deeplink-set {
   border-top: 1px solid var(--border);
 }

@@ -57,7 +57,14 @@ function createMainWindow() {
     if (win.isDestroyed()) return;
     const isMaximized = win.isMaximized();
     const bounds = win.getNormalBounds();
-    saveConfig({ windowBounds: { ...bounds, isMaximized } });
+    // Runs from a timer and on close, where an unhandled throw surfaces as the
+    // "A JavaScript error occurred in the main process" dialog. Window geometry
+    // is not worth that — log it and carry on.
+    try {
+      saveConfig({ windowBounds: { ...bounds, isMaximized } });
+    } catch (err) {
+      console.error(`[window] failed to persist bounds: ${err.message}`);
+    }
   }
   function schedulePersist() {
     clearTimeout(saveTimer);
