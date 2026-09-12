@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 
 let cached = null;
 let loadedFrom = null;
@@ -33,6 +34,7 @@ function saveConfig(updates) {
   if (cached == null) throw new Error('config not loaded yet — call loadConfig() first');
   if (loadedFrom == null) throw new Error('config path unknown');
   cached = { ...cached, ...updates };
+  fs.mkdirSync(path.dirname(loadedFrom), { recursive: true });
   fs.writeFileSync(loadedFrom, JSON.stringify(cached, null, 2) + '\n', 'utf8');
   return cached;
 }

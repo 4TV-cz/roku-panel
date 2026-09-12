@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('rokuPanel', {
   sendPassword: (creds) => ipcRenderer.invoke('roku:sendPassword', creds),
   sendText: (text) => ipcRenderer.invoke('roku:sendText', text),
   keypress: (key) => ipcRenderer.invoke('roku:keypress', key),
+  sendKeys: (keys, opts) => ipcRenderer.invoke('roku:sendKeys', keys, opts),
   reboot: () => ipcRenderer.invoke('roku:reboot'),
   checkForUpdate: () => ipcRenderer.invoke('roku:checkForUpdate'),
   openInBrowser: () => ipcRenderer.invoke('roku:openInBrowser'),

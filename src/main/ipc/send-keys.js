@@ -1,5 +1,5 @@
 const { signIn, sendUsername, sendPassword } = require('../roku/signin');
-const { sendText } = require('../roku/ecp');
+const { sendText, sendSequence } = require('../roku/ecp');
 const { reboot, checkForUpdate } = require('../roku/sequences');
 const { getDeviceHost } = require('../device');
 
@@ -38,6 +38,18 @@ function register(ipcMain) {
       return Promise.resolve({ ok: false, error: 'text is required' });
     }
     return withHost((host) => sendText(host, text))();
+  });
+
+  ipcMain.handle('roku:sendKeys', (_evt, keys, opts) => {
+    if (!Array.isArray(keys) || !keys.length) {
+      return Promise.resolve({ ok: false, error: 'keys is required' });
+    }
+    const clean = keys.map((k) => String(k).trim()).filter(Boolean);
+    if (!clean.length) return Promise.resolve({ ok: false, error: 'keys is required' });
+    const delayMs = Number(opts?.delayMs);
+    return withHost((host) =>
+      sendSequence(host, clean, { delayMs: Number.isFinite(delayMs) ? delayMs : 500 })
+    )();
   });
 
   ipcMain.handle('roku:reboot', async () => {

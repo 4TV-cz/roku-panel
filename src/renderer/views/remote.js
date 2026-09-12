@@ -1,4 +1,4 @@
-import { api } from '../api.js';
+import { api, emit } from '../api.js';
 import { createCard } from '../components/card.js';
 
 const BUTTONS = [
@@ -40,7 +40,9 @@ export function createRemoteView({ initialCollapsed = false } = {}) {
     if (!target) return;
     target.classList.add('pressed');
     setTimeout(() => target.classList.remove('pressed'), 150);
-    const res = await api.keypress(target.dataset.key);
+    const key = target.dataset.key;
+    emit('remote:keypress', { key });
+    const res = await api.keypress(key);
     if (!res.ok) console.error('keypress error:', res.error);
   });
 

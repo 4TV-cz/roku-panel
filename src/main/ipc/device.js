@@ -11,8 +11,8 @@ function register(ipcMain) {
 
   ipcMain.handle('roku:discover', async () => {
     try {
-      const { interfaces, devices } = await findRokuDevices({ timeoutMs: 5000 });
-      return { ok: true, interfaces, devices };
+      const { interfaces, devices, errors } = await findRokuDevices({ timeoutMs: 5000 });
+      return { ok: true, interfaces, devices, errors };
     } catch (err) {
       return { ok: false, error: err.message };
     }

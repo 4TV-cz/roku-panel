@@ -79,6 +79,18 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
     statusEl.textContent = `Selected ${res.host}`;
   }
 
+  // macOS (and Windows firewall) answer a blocked LAN packet with EHOSTUNREACH /
+  // EACCES rather than dropping it, so an empty scan plus one of those codes means
+  // the app was denied local network access, not that the LAN is empty.
+  const BLOCKED = ['EHOSTUNREACH', 'EACCES', 'EPERM', 'ENETUNREACH'];
+
+  function blockedMessage(errors = []) {
+    if (!errors.some((e) => BLOCKED.includes(e))) return 'Found 0 device(s).';
+    return navigator.platform.startsWith('Mac')
+      ? 'Found 0 device(s) — the system blocked local network access. Enable "Roku dev panel" in System Settings › Privacy & Security › Local Network, then try again.'
+      : 'Found 0 device(s) — the system blocked local network access. Allow this app through your firewall, then try again.';
+  }
+
   async function discover() {
     discoverBtn.disabled = true;
     statusEl.textContent = 'Scanning LAN for Roku devices…';
@@ -89,7 +101,9 @@ export function createDeviceInfoView({ initialCollapsed = false } = {}) {
         statusEl.textContent = `Error: ${res.error}`;
         return;
       }
-      statusEl.textContent = `Found ${res.devices.length} device(s).`;
+      statusEl.textContent = res.devices.length
+        ? `Found ${res.devices.length} device(s).`
+        : blockedMessage(res.errors);
       renderDevices(res.devices);
       if (res.devices.length > 0) {
         const current = await api.getHost();

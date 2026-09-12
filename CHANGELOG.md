@@ -33,6 +33,73 @@
     RALE's selector overlay around the selected node on the TV (`init` is only
     sent in this mode, so otherwise nothing is drawn).
 
+- **Deeplink — quick-run buttons** — Each set also gets a button in the Deeplink
+  card header, labelled with the value of its first filled-in parameter.
+  Clicking it re-runs that set with whichever method it last used (**Send
+  Launch** until one is picked), so a saved deeplink stays one click away with
+  the card collapsed. Buttons relabel as you type and disable while sending.
+
+- **Send keys — macros** — **● Record** captures every key pressed on the Remote
+  card and saves it as a named macro; **Send macro** replays the whole sequence
+  with 500 ms between keys. Macros can be renamed and deleted, and are persisted
+  to `config.keyMacros`. Backed by a new `roku:sendKeys` IPC handler over the
+  existing `ecp.sendSequence`.
+
+- **Headless CLI (`scripts/roku.js`)** — Drive the device from a terminal with no
+  UI: `keypress` / `keys` / `type`, `screenshot`, `deeplink` and `input`,
+  `signin` / `username` / `password`, `deploy` (ZIP or folder, zipped
+  in-process) and `delete`, `discover`, `device-info`, `reboot`, `check-update`.
+  It loads the same `src/main/roku/*` modules and the same `config.json` as the
+  panel, so host, credentials and saved users always match. Host resolution:
+  `--host` → `$ROKU_HOST` → `config.deviceHost`.
+
+- **Settings dialog** — Configurable screenshot and recording folders plus
+  recording resolution (720p/1080p) and format (WebM/MP4), persisted to
+  `config.screenshotDir` / `config.recordingDir`; listing, opening and deleting
+  media searches every configured folder. (Shipped earlier, recorded here late.)
+
+- **macOS support** — A dedicated `assets/icon-mac.png` / `.icns`, an
+  `NSLocalNetworkUsageDescription` in the bundle so macOS can prompt for Local
+  Network access, ad-hoc code signing as part of `npm run build`, and `start.sh`
+  to launch the panel from a terminal. The terminal part is not a style
+  preference: macOS grants Local Network access per app bundle, a spawned
+  process inherits the terminal's grant, and a Finder or Dock launch has none —
+  every call to the device then fails with `EHOSTUNREACH`.
+
+- **Local network diagnosis** — SSDP discovery now collects bind and send
+  errors, so **Get Roku IP** can tell "no device answered" apart from "the OS
+  blocked the packet" (`EHOSTUNREACH`, `EACCES`, `EPERM`, `ENETUNREACH`). The
+  empty result then points at System Settings › Privacy & Security › Local
+  Network on macOS, or the firewall elsewhere.
+
+### Changed
+
+- **Build scripts** — `npm run build` now produces an ad-hoc-signed macOS arm64
+  bundle (`electron-builder --dir --mac --arm64` followed by `codesign`);
+  `npm run build:win` keeps a Windows dir build. The NSIS and DMG targets and
+  the `publish` block were dropped. Note that `.github/workflows/release.yml`
+  still calls `electron-builder --publish always` and has not been adjusted.
+
+- **Config location** — The dev app, the packaged app and the CLI all read and
+  write the checkout's `config.json`. The packaged app locates that checkout via
+  `ROKU_PANEL_HOME`, then a pointer file refreshed by every dev run and every
+  CLI call (`<userData>/project-root.json`), then the path baked in at build
+  time, falling back to `userData`. Moving or renaming the checkout no longer
+  requires a rebuild.
+
+### Fixed
+
+- **Packaged app crashed after the project folder was renamed** — `PROJECT_ROOT`
+  came solely from the build-time `$PWD` baked into the bundle, so the first
+  window-bounds save wrote into a folder that no longer existed and the ENOENT
+  surfaced as "A JavaScript error occurred in the main process". Root resolution
+  now falls back as described above, `saveConfig` creates its directory, and
+  `persistBounds` logs a failed write instead of throwing from a timer.
+
+- **Window icon in a relocated build** — `ICON_PATH` resolved against the
+  project root; it now resolves inside the app bundle, where the icon ships.
+
+
 ## 2026-06-03
 
 First packaged release of the Roku dev panel — an Electron desktop app that

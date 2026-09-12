@@ -5,7 +5,9 @@ const CONFIG_KEY = 'deeplinkSets';
 const LEGACY_KEYS = ['deeplinkParams', 'deeplinkParams2', 'deeplinkParams3'];
 const DEFAULT_SEED = 2;
 
-function createSet({ params, collapsed = false, lastUsed = null, onChange, onRemove }) {
+const DEFAULT_METHOD = 'launch';
+
+function createSet({ params, collapsed = false, lastUsed = null, onChange, onRemove, onRunState }) {
   const sendInputBtn = btn('Send Input');
   const sendLaunchBtn = btn('Send Launch');
   const addBtn = btn('+ Add parameter', { className: 'deeplink-add' });
@@ -43,10 +45,10 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
       if (idx === -1) return;
       rows.splice(idx, 1);
       rowEl.remove();
-      onChange();
+      changed();
     });
-    keyInput.addEventListener('input', onChange);
-    valueInput.addEventListener('input', onChange);
+    keyInput.addEventListener('input', changed);
+    valueInput.addEventListener('input', changed);
 
     rowEl.appendChild(keyInput);
     rowEl.appendChild(valueInput);
@@ -64,7 +66,7 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
   addBtn.addEventListener('click', () => {
     const entry = addRow();
     entry.keyInput.focus();
-    onChange();
+    changed();
   });
 
   const seed = Array.isArray(params) && params.length ? params : new Array(DEFAULT_SEED).fill({});
@@ -139,9 +141,12 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
     return readAllParams().filter((p) => p.key !== '');
   }
 
+  let busyFlag = false;
   function setBusy(busy) {
+    busyFlag = busy;
     sendInputBtn.disabled = busy;
     sendLaunchBtn.disabled = busy;
+    notifyRunState();
   }
 
   let lastUsedBtn = lastUsed;
@@ -149,7 +154,24 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
     lastUsedBtn = which;
     sendInputBtn.classList.toggle('deeplink-last-used', which === 'input');
     sendLaunchBtn.classList.toggle('deeplink-last-used', which === 'launch');
+    notifyRunState();
   }
+
+  // Label for the header quick-run button: value of the first filled-in parameter.
+  function firstValue() {
+    const first = rows.find((r) => r.valueInput.value.trim() !== '');
+    return first ? first.valueInput.value.trim() : '';
+  }
+
+  function notifyRunState() {
+    if (onRunState) onRunState({ method: lastUsedBtn || DEFAULT_METHOD, busy: busyFlag, label: firstValue() });
+  }
+
+  function changed() {
+    onChange();
+    notifyRunState();
+  }
+
   markLastUsed(lastUsed);
 
   async function send(which, actionLabel, fn) {
@@ -172,12 +194,20 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
     }
   }
 
-  sendInputBtn.addEventListener('click', () =>
-    send('input', 'Send Input', (params) => api.sendDeeplinkInput({ params }))
-  );
-  sendLaunchBtn.addEventListener('click', () =>
-    send('launch', 'Send Launch', (params) => api.sendDeeplinkLaunch({ appId: 'dev', params }))
-  );
+  function sendInput() {
+    return send('input', 'Send Input', (params) => api.sendDeeplinkInput({ params }));
+  }
+  function sendLaunch() {
+    return send('launch', 'Send Launch', (params) => api.sendDeeplinkLaunch({ appId: 'dev', params }));
+  }
+
+  sendInputBtn.addEventListener('click', sendInput);
+  sendLaunchBtn.addEventListener('click', sendLaunch);
+
+  // Runs the set with whichever method was used last (Launch until one is picked).
+  function run() {
+    return (lastUsedBtn || DEFAULT_METHOD) === 'input' ? sendInput() : sendLaunch();
+  }
 
   function setLabel(text) {
     titleEl.textContent = text;
@@ -187,7 +217,7 @@ function createSet({ params, collapsed = false, lastUsed = null, onChange, onRem
     return { collapsed: element.classList.contains('collapsed'), lastUsed: lastUsedBtn, params: readAllParams() };
   }
 
-  return { element, setLabel, getState };
+  return { element, setLabel, getState, run };
 }
 
 function migrateLegacy(cfg) {
@@ -207,6 +237,10 @@ export function createDeeplinkView({ initialCollapsed = false } = {}) {
 
   const addSetBtn = btn('+ Add set', { className: 'deeplink-add-set' });
 
+  // One quick-run button per set, in the card header
+  const quickEl = document.createElement('div');
+  quickEl.className = 'deeplink-quick-actions';
+
   const body = document.createElement('div');
   body.className = 'deeplink-body-wrap';
   body.appendChild(setsEl);
@@ -220,8 +254,18 @@ export function createDeeplinkView({ initialCollapsed = false } = {}) {
     }, 400);
   }
 
+  function refreshQuick(entry) {
+    const method = entry.method === 'input' ? 'Input' : 'Launch';
+    entry.quickBtn.textContent = entry.label || `Set ${entry.index}`;
+    entry.quickBtn.title = `Set ${entry.index}: Send ${method}`;
+  }
+
   function renumber() {
-    sets.forEach((s, i) => s.setLabel(`Set ${i + 1}`));
+    sets.forEach((s, i) => {
+      s.index = i + 1;
+      s.setLabel(`Set ${s.index}`);
+      refreshQuick(s);
+    });
   }
 
   function removeSet(entry) {
@@ -229,20 +273,36 @@ export function createDeeplinkView({ initialCollapsed = false } = {}) {
     if (idx === -1) return;
     sets.splice(idx, 1);
     entry.element.remove();
+    entry.quickBtn.remove();
     renumber();
     scheduleSave();
   }
 
   function addSet({ params, collapsed = false, lastUsed = null } = {}, { focus = false } = {}) {
-    const entry = createSet({
-      params,
-      collapsed,
-      lastUsed,
-      onChange: scheduleSave,
-      onRemove: () => removeSet(entry)
-    });
+    const entry = { index: sets.length + 1, method: lastUsed || 'launch', label: '' };
+    entry.quickBtn = btn('', { className: 'deeplink-quick' });
+    entry.quickBtn.addEventListener('click', () => entry.run());
+
+    Object.assign(
+      entry,
+      createSet({
+        params,
+        collapsed,
+        lastUsed,
+        onChange: scheduleSave,
+        onRemove: () => removeSet(entry),
+        onRunState: ({ method, busy, label }) => {
+          entry.method = method;
+          entry.label = label;
+          entry.quickBtn.disabled = busy;
+          refreshQuick(entry);
+        }
+      })
+    );
+
     sets.push(entry);
     setsEl.appendChild(entry.element);
+    quickEl.appendChild(entry.quickBtn);
     renumber();
     if (focus) entry.element.scrollIntoView({ block: 'nearest' });
     return entry;
@@ -257,7 +317,7 @@ export function createDeeplinkView({ initialCollapsed = false } = {}) {
     id: 'deeplink',
     title: 'Deeplink',
     initialCollapsed,
-    actions: [],
+    actions: [quickEl],
     body
   });
 
